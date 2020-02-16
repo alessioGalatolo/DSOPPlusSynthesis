@@ -1,39 +1,103 @@
-//
-// Created by alessio on 2/7/20.
-//
-
 #include "bool_utils.h"
 #include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
-bool_f* f_create(int values[], int variables){
+/**
+ * Creates a boolean function given the output as values
+ * @param values The output of the function. Ex: values[0] = f(0,...,0), values[1] = f(0,...,0,1), ecc..
+ * @param variables The number of variables taken by the function
+ * @return A pointer to a struct representing the function
+ */
+bool_f* f_create(bool values[], int variables){
     bool_f* boolf = malloc(sizeof(bool_f));
     NULL_CHECK(boolf);
-    NULL_CHECK(boolf -> values = malloc(sizeof(int) * variables));
-    NULL_CHECK(memcpy(boolf -> values, values, sizeof(int) * variables));
-    boolf -> size = variables;
+//    NULL_CHECK(boolf -> values = malloc(sizeof(bool) * variables));
+//    NULL_CHECK(memcpy(boolf -> values, values, sizeof(int) * variables));
+    boolf -> values = values;
+    boolf -> variables = variables;
     return boolf;
 }
 
+/**
+ * Generates a boolean plus function with random outputs.
+ * @param variables Number of variables taken by the function
+ * @return A pointer to the function
+ */
 bool_f* f_create_random(int variables){
     srandom(time(NULL));
     bool_f* boolf = malloc(sizeof(bool_f));
     NULL_CHECK(boolf);
-    NULL_CHECK(boolf -> values = malloc(sizeof(int) * variables));
+    NULL_CHECK(boolf -> values = malloc(sizeof(bool) * variables));
     for(int i = 0; i < variables; i++){
-        *((boolf -> values) + i) = random() ;
+        *((boolf -> values) + i) = random() % 2;
     }
-    boolf -> size = variables;
+    boolf -> variables = variables;
     return boolf;
 }
 
+//Returns the output of the function, given the binary input
+bool f_get_value(bool_f* function, bool input[]){
+    NULL_CHECK(function);
+    int decimal = binary2decimal(input, function -> variables);
+    return function -> values[decimal];
+}
 
-bool_product* product_create(int product[], int size){
+/**
+ * Creates and initializes the boolean product
+ * @param product The product to be assigned
+ * @param size The number of variables of the product
+ * @return a pointer to the product
+ */
+bool_product* product_create(bool product[], int size){
     bool_product* new_prod = malloc(sizeof(bool_product));
     NULL_CHECK(new_prod);
     new_prod -> product = product;
-    new_prod -> size = size;
+    new_prod -> variables = size;
     return new_prod;
+}
+
+/**
+ * @return the output of the product with the given variable values
+ */
+bool product_of(bool_product* product, const bool input[]){
+    bool result = 1;
+    int i = 0;
+    while(result && i < product -> variables){
+        switch(product -> product[i]){
+            case 0:
+                result = !input[i];
+                break;
+            case 1:
+                result = input[i];
+                break;
+        }
+        i++;
+    }
+    return result;
+}
+
+/**
+ * Get the decimal representation of the given binary number
+ * @param values an array of booleans
+ * @param size of the array
+ */
+int binary2decimal(const bool *values, int size) {
+    int number = 0;
+    for(int i = 0; i < size; i++){
+        number += values[size - i - 1] * (int) exp2(i);
+    }
+    return 0;
+}
+
+/**
+ * Get the binary representation of the given number
+ */
+bool* decimal2binary(int value, int size){
+    bool binary[size];
+    for(int i = 0; i < size; i++){
+        binary[size - i - 1] = value % (int) exp2(i);
+    }
 }

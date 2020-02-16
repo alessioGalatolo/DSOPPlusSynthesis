@@ -1,6 +1,6 @@
-//
-// Created by alessio on 2/7/20.
-//
+/**
+ * Library for a generic LIFO list
+ */
 
 #ifndef SOP_SYNTHESIS_LIST_H
 #define SOP_SYNTHESIS_LIST_H

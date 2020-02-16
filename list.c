@@ -1,22 +1,9 @@
-//
-// Created by alessio on 2/7/20.
-//
-
 #include "list.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "utils.h"
 #include <string.h>
 
-//sop* list_get(list_t *list){
-//    NULL_CHECK(list);
-//
-//    char *ret = (*queue) -> s;
-//    queue_t *to_free = *queue;
-//    *queue = (*queue) -> next;
-//    free(to_free);
-//    return ret;
-//}
 
 
 list_t* list_create(){

@@ -1,7 +1,4 @@
-//
-// Created by alessio on 2/7/20.
-//
-
+//common utilities
 #ifndef SOP_SYNTHESIS_UTILS_H
 #define SOP_SYNTHESIS_UTILS_H
 
