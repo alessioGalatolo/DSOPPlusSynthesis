@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "bool_utils.h"
 #include "bool_plus.h"
 
@@ -9,6 +11,7 @@ int main() {
     sopp* sopp = sopp_create();
     implicant_plus* implicants = prime_implicants(function);
 
-    
+
+
     return 0;
 }

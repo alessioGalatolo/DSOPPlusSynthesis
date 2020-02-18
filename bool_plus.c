@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <assert.h>
 
 //internal functions
 void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
+bool* joinable_vectors(const bool*, const bool*, int size);
 
 /**
  * Creates a boolean plus function with the given parameters
@@ -188,6 +190,7 @@ void quickSort(bool** arr, int low, int high, int variables, int* norms) {
     }
 }
 
+
 /**
  * Quine–McCluskey algorithm for finding prime implicants
  * @param f
@@ -197,26 +200,65 @@ implicant_plus* prime_implicants(fplus* f){
     int* norms = malloc(sizeof(int) * f -> size);
     NULL_CHECK(norms);
     bool** non_zeros = f -> non_zeros;
-    int size = f -> size;
+    int non_zeros_size = f -> size;
 
     //sort the non zero values
-    quickSort(non_zeros, 0, size - 1, f -> variables, norms);
+    quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, norms);
 
     //split them in classes
-    list_t* norms_split[size];
-    for(int i = 0; i < size; i++)
+    list_t* norms_split[non_zeros_size]; //list of lists
+    for(int i = 0; i < non_zeros_size; i++)
         norms_split[i] = list_create();
-    int index = 0;
+    int norms_splis_size = 0;
     norms_split[0] = list_add(norms_split[0], non_zeros[0]);
-    for(int i = 1; i < size; i++){
+    for(int i = 1; i < non_zeros_size; i++){
         if(norms[i] > norms[i - 1])
-            index++;
-        norms_split[index] = list_add(norms_split[index], non_zeros[i]);
+            norms_splis_size++;
+        norms_split[norms_splis_size] = list_add(norms_split[norms_splis_size], non_zeros[i]);
     }
 
+    non_zeros = malloc(sizeof(bool*) * non_zeros_size); //new array
+
+    int old_list_size, list2_size;
+    bool **old_list = list_as_array(norms_split[0], &old_list_size); //will store old latest list retrieved
+    for(int norms_index = 1; norms_index < norms_splis_size; norms_index++){
+        bool **list2 = list_as_array(norms_split[norms_index], &list2_size);
+
+
+        for(int i = 0; i < old_list_size; i++){
+            for(int j = 0; j < list2_size; j++){
+                bool* elem = joinable_vectors(old_list[i], list2[j], f -> variables); //TODO: may be some duplicates?
+                //add elem to non_zeros
+                //...
+            }
+        }
+
+        old_list = list2;
+
+
+
+    }
     //TODO: join vectors with only one different value
 
 
     //TODO: iterate
     return 0;
+}
+
+bool* joinable_vectors(const bool* v1, const bool* v2, int size){
+    bool* join = malloc(sizeof(bool) * size);
+    int counter = 0; //counts the complimentary bits found
+    for(int i = 0; i < size; i++){
+        if(v1[i] == v2[i]){
+            join[i] = v1[i];
+        }else/* if((v1[i] == false && v2[i] == true) || (v1[i] == true && v2[i] == false))*/{
+            counter++;
+            if(counter > 1) {
+                free(join);
+                return NULL; //are not joinable
+            }
+            join[i] = dont_care;
+        }
+    }
+    return join;
 }

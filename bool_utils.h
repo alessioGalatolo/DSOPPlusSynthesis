@@ -6,6 +6,11 @@
 #ifndef SOP_SYNTHESIS_BOOL_UTILS_H
 #define SOP_SYNTHESIS_BOOL_UTILS_H
 
+#define false 0
+#define true 1
+#define not_present 2
+#define dont_care 3
+
 typedef unsigned char bool;
 
 typedef struct{

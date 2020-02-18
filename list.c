@@ -18,6 +18,26 @@ list_t* list_add(list_t *list, void* value){
     return new_node;
 }
 
+int list_size(list_t* list){
+    int size = 0;
+    while(list != NULL){
+        list = list -> next;
+        size++;
+    }
+    return size;
+}
+
+
+void* list_as_array(list_t* list, int* size){
+    *size = list_size(list);
+    void** array = malloc(sizeof(void*) * (*size));
+    for(int i = 0; i < *size; i++){
+        array[*size - i - 1] = list -> value;
+        list = list -> next;
+    }
+    return array;
+}
+
 void list_destroy(list_t* list){
     while(list != NULL){
         list_t* next = list -> next;
