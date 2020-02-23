@@ -18,6 +18,13 @@ list_t* list_add(list_t *list, void* value){
     return new_node;
 }
 
+void* list_get(list_t* l){
+    if(!l)
+        return 0;
+    else
+        return l -> value;
+}
+
 int list_size(list_t* list){
     int size = 0;
     while(list != NULL){
@@ -38,11 +45,14 @@ void* list_as_array(list_t* list, int* size){
     return array;
 }
 
+/**
+ * Frees the list from the heap, also frees all the elements pointed
+ */
 void list_destroy(list_t* list){
     while(list != NULL){
         list_t* next = list -> next;
+        free(list -> value);
         free(list);
-        //TODO: free also void* ?
         list = next;
     }
 }

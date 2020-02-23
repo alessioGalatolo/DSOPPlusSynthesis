@@ -23,9 +23,12 @@ bool_f* f_create(bool values[], int variables){
 
 /**
  * Generates a boolean plus function with random outputs.
+ * //TODO: FUNCTION IS WRONG
  * @param variables Number of variables taken by the function
  * @return A pointer to the function
  */
+
+//TODO: FUNCTION IS WRONG
 bool_f* f_create_random(int variables){
     srandom(time(NULL));
     bool_f* boolf = malloc(sizeof(bool_f));
@@ -89,15 +92,47 @@ int binary2decimal(const bool *values, int size) {
     for(int i = 0; i < size; i++){
         number += values[size - i - 1] * (int) exp2(i);
     }
-    return 0;
+    return number;
 }
+
+int* binary2decimals(const bool *values, int size, int* returnsize){
+    *returnsize = 1;
+    for(int i = 0; i < size; i++){
+        if(values[i] == dash)
+            *returnsize *= 2;
+    }
+
+    int dash_found = 1;
+
+    int* numbers = malloc(sizeof(int) * *returnsize);
+    NULL_CHECK(numbers);
+    memset(numbers, 0, sizeof(int) * *returnsize);
+
+    for(int i = 0; i < size; i++){
+        if(values[size - i - 1] == dash){
+            for(int j = 0; j < size; j += 2){
+                numbers[j] += (int) exp2(i);
+                //TODO: not working
+            }
+            dash_found *= 2;
+        }else{
+            for(int j = 0; j < size; j++){
+                numbers[j] += values[size - i - 1] * (int) exp2(i);
+            }
+        }
+    }
+    return numbers;
+}
+
 
 /**
  * Get the binary representation of the given number
  */
 bool* decimal2binary(int value, int size){
-    bool binary[size];
+    bool* binary = malloc(sizeof(bool) * size);
+    NULL_CHECK(binary);
     for(int i = 0; i < size; i++){
         binary[size - i - 1] = value % (int) exp2(i);
     }
+    return binary;
 }

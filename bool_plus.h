@@ -23,14 +23,21 @@ typedef struct{
 
 typedef struct {
     int* values;
-    int variables; //number of variables taken as input, also size of above array
+    int variables; //number of variables taken as input, 2^variables = size of above array
     bool** non_zeros; //array with the index of non-zero values written as binary numbers
     int size; //size of above array
 }fplus;
 
 typedef struct {
-
+    bool** implicants;
+    int size;
 }implicant_plus;
+
+typedef struct {
+    sop_t* implicants;
+    bool** points;
+    int size;
+}essentials;
 
 fplus* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
 fplus* fplus_create_random(int variables); //creates a boolean plus function with random outputs
@@ -41,6 +48,7 @@ int sopp_add(sopp*, product_plus*);
 int sopp_value_of(sopp*, bool*);
 bool is_sopp_of(sopp*, fplus);
 implicant_plus* prime_implicants(fplus*);
+essentials* essential_implicants(fplus*, implicant_plus*);
 
 
 

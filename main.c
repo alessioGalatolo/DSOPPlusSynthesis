@@ -10,6 +10,7 @@ int main() {
     fplus* function = fplus_create_random(VARIABLES);
     sopp* sopp = sopp_create();
     implicant_plus* implicants = prime_implicants(function);
+    essentials* e = essential_implicants(function, implicants);
 
 
 

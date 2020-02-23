@@ -4,10 +4,13 @@
 #include <time.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
+
 
 //internal functions
 void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
 bool* joinable_vectors(const bool*, const bool*, int size);
+sop_t* implicants2sop(bool**, int size, int variables);
 
 /**
  * Creates a boolean plus function with the given parameters
@@ -36,11 +39,12 @@ fplus* fplus_create(int* values, bool** non_zeros, int variables, int size){
 fplus* fplus_create_random(int variables){
     srandom(time(NULL));
     fplus* function = malloc(sizeof(fplus));
+    int f_size = (int) exp2(variables);
     NULL_CHECK(function);
-    NULL_CHECK(function -> values = malloc(sizeof(int) * variables));
-    NULL_CHECK(function -> non_zeros = malloc(sizeof(bool) * variables * variables));
+    NULL_CHECK(function -> values = malloc(sizeof(int) * f_size));
+    NULL_CHECK(function -> non_zeros = malloc(sizeof(bool) * variables * f_size));
     int non_zeros_index = 0;
-    for(int i = 0; i < variables; i++){
+    for(int i = 0; i < f_size; i++){
         bool is_non_zero = random() % 2;
         if(is_non_zero) {
             function -> values[i] = (int) random();
@@ -201,64 +205,169 @@ implicant_plus* prime_implicants(fplus* f){
     NULL_CHECK(norms);
     bool** non_zeros = f -> non_zeros;
     int non_zeros_size = f -> size;
+    bool** result = NULL;
+    int result_size = 0;
 
-    //sort the non zero values
-    quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, norms);
+    while(non_zeros_size > 0) {
+        //sort non zero values
+        quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, norms);
 
-    //split them in classes
-    list_t* norms_split[non_zeros_size]; //list of lists
-    for(int i = 0; i < non_zeros_size; i++)
-        norms_split[i] = list_create();
-    int norms_splis_size = 0;
-    norms_split[0] = list_add(norms_split[0], non_zeros[0]);
-    for(int i = 1; i < non_zeros_size; i++){
-        if(norms[i] > norms[i - 1])
-            norms_splis_size++;
-        norms_split[norms_splis_size] = list_add(norms_split[norms_splis_size], non_zeros[i]);
-    }
-
-    non_zeros = malloc(sizeof(bool*) * non_zeros_size); //new array
-
-    int old_list_size, list2_size;
-    bool **old_list = list_as_array(norms_split[0], &old_list_size); //will store old latest list retrieved
-    for(int norms_index = 1; norms_index < norms_splis_size; norms_index++){
-        bool **list2 = list_as_array(norms_split[norms_index], &list2_size);
-
-
-        for(int i = 0; i < old_list_size; i++){
-            for(int j = 0; j < list2_size; j++){
-                bool* elem = joinable_vectors(old_list[i], list2[j], f -> variables); //TODO: may be some duplicates?
-                //add elem to non_zeros
-                //...
-            }
+        //split them in classes
+        list_t *norms_split[non_zeros_size]; //list of lists
+        for (int i = 0; i < non_zeros_size; i++)
+            norms_split[i] = list_create();
+        int norms_splits_size = 0;
+        norms_split[0] = list_add(norms_split[0], non_zeros[0]);
+        for (int i = 1; i < non_zeros_size; i++) {
+            if (norms[i] > norms[i - 1])
+                norms_splits_size++;
+            norms_split[norms_splits_size] = list_add(norms_split[norms_splits_size], non_zeros[i]);
         }
 
-        old_list = list2;
+//        free(non_zeros);
+        NULL_CHECK(non_zeros = malloc(sizeof(bool *) * non_zeros_size)); //new array
+        non_zeros_size = 0;
+
+        //join matching vectors
+        int old_list_size, list2_size;
+        bool **old_list = list_as_array(norms_split[0], &old_list_size); //will store old latest list retrieved
+        for (int norms_index = 1; norms_index < norms_splits_size; norms_index++) {
+            bool **list2 = list_as_array(norms_split[norms_index], &list2_size);
+
+            for (int i = 0; i < old_list_size; i++) {
+                for (int j = 0; j < list2_size; j++) {
+                    bool *elem = joinable_vectors(old_list[i], list2[j], f->variables); //TODO: may there be some duplicates?
+                    if (elem) {
+                        non_zeros[non_zeros_size++] = elem;
+                    }
+                }
+            }
+
+            old_list = list2;
+            old_list_size = list2_size;
+        }
 
 
+        if(non_zeros_size == 0){//end of cycle
+            bool** gigarrey[norms_splits_size];
+            int sizes[norms_splits_size];
+            result_size = 0;
+            for(int i = 0; i < norms_splits_size; i++){
+                gigarrey[i] = list_as_array(norms_split[i], sizes + i);
+                result_size += sizes[i];
+            }
 
+            NULL_CHECK(result = malloc(sizeof(bool*) * result_size));
+
+            int current_list = 0;
+            int current_index = 0;
+            for(int i = 0; i < result_size; i++){
+                if(current_index < sizes[current_list])
+                    result[i] = gigarrey[current_list][current_index++];
+                else{
+                    current_list++;
+                    current_index = 0;
+                    result[i] = gigarrey[current_list][current_index];
+                }
+            }
+
+//            free(gigarrey); //???
+        }/*else
+        for(int i = 0; i < norms_splits_size; i++)
+            list_destroy(norms_split[i]);*/
     }
-    //TODO: join vectors with only one different value
 
+    implicant_plus* implicants = malloc(sizeof(implicant_plus));
+    NULL_CHECK(implicants);
+    implicants -> implicants = result;
+    implicants -> size = result_size;
 
-    //TODO: iterate
-    return 0;
+    return implicants;
 }
 
+/**
+ * Checks if the two vectors are joinable
+ * Two vectors v1, v2 are joinable <=> Exists j / v1(j) = !v2(j) and for each i != j v1(i) = v2(i)
+ * The joined vector will be equal to v1(or v2) for each i != j and will a dash value for i = j
+ * @param size The size of the vectors
+ * @return The joined vector (in heap) if possible, NULL otherwise
+ */
 bool* joinable_vectors(const bool* v1, const bool* v2, int size){
     bool* join = malloc(sizeof(bool) * size);
+    NULL_CHECK(join);
     int counter = 0; //counts the complimentary bits found
     for(int i = 0; i < size; i++){
         if(v1[i] == v2[i]){
             join[i] = v1[i];
-        }else/* if((v1[i] == false && v2[i] == true) || (v1[i] == true && v2[i] == false))*/{
+        }else if(v1[i] == dash && v2[i] == dash) {
+            free(join);
+            return NULL;
+        }else{
             counter++;
             if(counter > 1) {
                 free(join);
                 return NULL; //are not joinable
             }
-            join[i] = dont_care;
+            join[i] = dash;
         }
     }
     return join;
 }
+
+/**
+ * Finds the essential implicants of the function from the prime implicants
+ * @return a pointer to a struct containing the essential points and the essential prime implicants
+ */
+essentials* essential_implicants(fplus* f, implicant_plus* implicants){
+    int f_size = (int) exp2(f -> variables);
+    list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
+    bool** essential_implicants = malloc(sizeof(bool*) * implicants -> size); //stores the essential points
+    NULL_CHECK(essential_implicants);
+    int ei_index = 0; //index of above and below array;
+    bool** essential_points = malloc(sizeof(bool*) * implicants -> size);
+    NULL_CHECK(essential_points);
+
+    //init the array of points
+    for(int i = 0; i < f_size; i++){
+        points[i] = list_create();
+    }
+
+    //count occurrences of various points
+    for(int i = 0; i < implicants -> size; i++){
+        int size = 0;
+        int* indexes = binary2decimals(implicants -> implicants[i], f -> variables, &size);
+        for(int j = 0; j < size; j++){
+            points[indexes[j]] = list_add(points[indexes[j]], implicants -> implicants[i]);
+        }
+    }
+
+    //store points and implicants in array
+    for(int i = 0; i < f -> size; i++){
+        int index = binary2decimal(f -> non_zeros[i], f -> variables);
+        int l_size = list_size(points[index]);
+        if(l_size == 0){
+            fprintf(stderr, "Some error occurred, an essential point has not been covered");
+            return NULL;
+        }else if(l_size == 1){
+            essential_implicants[ei_index] = list_get(points[index]);
+            essential_points[ei_index++] = f -> non_zeros[i];
+        }
+    }
+
+    //resize memory
+    NULL_CHECK(essential_implicants = realloc(essential_implicants, sizeof(bool*) * ei_index));
+    NULL_CHECK(essential_points = realloc(essential_points, sizeof(bool*) * ei_index));
+
+    essentials* e = malloc(sizeof(essentials));
+    e -> implicants = implicants2sop(essential_implicants, ei_index, f -> variables);
+    e -> points = essential_points;
+    e -> size = ei_index;
+//    free(essential_implicants);
+    return e;
+}
+
+
+sop_t* implicants2sop(bool** implicants, int size, int variables){
+
+}
+

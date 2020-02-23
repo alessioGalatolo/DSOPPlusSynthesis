@@ -10,6 +10,7 @@
 #define true 1
 #define not_present 2
 #define dont_care 3
+#define dash 4 //used to join two vectors
 
 typedef unsigned char bool;
 
@@ -25,6 +26,7 @@ typedef struct{
 
 /* Utility functions */
 int binary2decimal(const bool *values, int size);
+int* binary2decimals(const bool *values, int size, int* returnsize); //same as above but it may return more decimal if values contains dashes
 bool* decimal2binary(int value, int size);
 
 
