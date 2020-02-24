@@ -13,21 +13,28 @@
 #define dash 4 //used to join two vectors
 
 typedef unsigned char bool;
+typedef bool* bvector;
 
 typedef struct{
-    bool* values;
+    bvector values;
     int variables;
 }bool_f;
 
 typedef struct{
-    bool* product; //0 -> not value, 1 -> value, 2 -> not present
+    bvector product; //0 -> not value, 1 -> value, 2 -> not present
     int variables;
 }bool_product;
 
+typedef struct{
+    bool_product* products;
+    int size;
+}sop_t;
+
 /* Utility functions */
+int norm1(const bool*, int size);
 int binary2decimal(const bool *values, int size);
 int* binary2decimals(const bool *values, int size, int* returnsize); //same as above but it may return more decimal if values contains dashes
-bool* decimal2binary(int value, int size);
+bvector decimal2binary(int value, int size);
 
 
 /* Other functions */
@@ -41,9 +48,5 @@ bool_f* f_create_random(int variables);
 bool_product* product_create(bool product[], int size);
 bool product_of(bool_product*, const bool*); //returns the value of the product with the given values
 
-typedef struct{
-    bool_product* products;
-    int size;
-}sop_t;
 
 #endif //SOP_SYNTHESIS_BOOL_UTILS_H

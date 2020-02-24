@@ -34,14 +34,15 @@ typedef struct {
 }implicant_plus;
 
 typedef struct {
-    sop_t* implicants;
+    product_plus* implicants;
     bool** points;
     int size;
 }essentials;
 
 fplus* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
-fplus* fplus_create_random(int variables); //creates a boolean plus function with random outputs
+fplus* fplus_create_random(int variables, int max_value); //creates a boolean plus function with random outputs
 int fplus_value_of(fplus*, bool*); //returns the output of the function with the given input
+void fplus_print(fplus*);
 
 sopp* sopp_create();
 int sopp_add(sopp*, product_plus*);

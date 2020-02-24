@@ -4,55 +4,62 @@
 #include "utils.h"
 #include <string.h>
 
-
-
+#define LIST_INIT_SIZE 100
+#define LIST_INCREMENT 2
 list_t* list_create(){
-    return NULL;
+    list_t* list;
+    MALLOC(list, sizeof(list_t),;);
+    MALLOC(list -> list, sizeof(void*) * LIST_INIT_SIZE,free(list));
+    MALLOC(list -> sizes, sizeof(size_t) * LIST_INIT_SIZE,free(list -> list); free(list));
+    list -> current_length = 0;
+    list -> max_length = LIST_INIT_SIZE;
+    return list;
 }
 
-list_t* list_add(list_t *list, void* value){
-    list_t* new_node = malloc(sizeof(list_t));
-    NULL_CHECK(new_node);
-    new_node -> value = value;
-    new_node -> next = list;
-    return new_node;
-}
-
-void* list_get(list_t* l){
+int list_add(list_t *l, void* value, size_t size){
     if(!l)
         return 0;
-    else
-        return l -> value;
+    //reached max length
+    if(l -> current_length >= l -> max_length) {
+        REALLOC(l -> list, sizeof(void*) * l -> max_length * LIST_INCREMENT,;);
+        l -> max_length *= LIST_INCREMENT;
+    }
+
+    MALLOC(l -> list[l -> current_length], size,;);
+    memcpy(l -> list[l -> current_length], value, size);
+    l -> sizes[l -> current_length] = size;
+    l -> current_length++;
+    return 1;
 }
 
-int list_size(list_t* list){
-    int size = 0;
-    while(list != NULL){
-        list = list -> next;
-        size++;
-    }
-    return size;
+void* list_get(list_t* l, size_t* size, int index){
+    if(!l)
+        return 0;
+    if(size)
+        *size = l -> sizes[index];
+    return l -> list[index];
+}
+
+int list_length(list_t* list){
+    if(!list)
+        return 0;
+    return list -> current_length;
 }
 
 
-void* list_as_array(list_t* list, int* size){
-    *size = list_size(list);
-    void** array = malloc(sizeof(void*) * (*size));
-    for(int i = 0; i < *size; i++){
-        array[*size - i - 1] = list -> value;
-        list = list -> next;
-    }
-    return array;
+void* list_as_array(list_t* list, size_t* size){
+    if(size)
+        *size = list -> current_length;
+    return list -> list;
 }
 
 /**
  * Frees the list from the heap, also frees all the elements pointed
  */
 void list_destroy(list_t* list){
-    while(list != NULL){
-        list_t* next = list -> next;
-        free(list -> value);
-        free(list);
-        list = next;
+    for(size_t i = 0; i < list -> current_length; i++){
+        free(list -> list[i]);
     }
+    free(list -> sizes);
+    free(list);
 }

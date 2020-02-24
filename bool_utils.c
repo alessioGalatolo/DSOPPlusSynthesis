@@ -12,11 +12,10 @@
  * @return A pointer to a struct representing the function
  */
 bool_f* f_create(bool values[], int variables){
-    bool_f* boolf = malloc(sizeof(bool_f));
-    NULL_CHECK(boolf);
-//    NULL_CHECK(boolf -> values = malloc(sizeof(bool) * variables));
-//    NULL_CHECK(memcpy(boolf -> values, values, sizeof(int) * variables));
-    boolf -> values = values;
+    bool_f* boolf;
+    MALLOC(boolf, sizeof(bool_f), ;);
+    MALLOC(boolf -> values, sizeof(bool) * variables, free(boolf));
+    NULL_CHECK(memcpy(boolf -> values, values, sizeof(bool) * variables));
     boolf -> variables = variables;
     return boolf;
 }
@@ -27,9 +26,8 @@ bool_f* f_create(bool values[], int variables){
  * @param variables Number of variables taken by the function
  * @return A pointer to the function
  */
-
-//TODO: FUNCTION IS WRONG
 bool_f* f_create_random(int variables){
+//TODO: FUNCTION IS WRONG
     srandom(time(NULL));
     bool_f* boolf = malloc(sizeof(bool_f));
     NULL_CHECK(boolf);
@@ -55,9 +53,10 @@ bool f_get_value(bool_f* function, bool input[]){
  * @return a pointer to the product
  */
 bool_product* product_create(bool product[], int size){
-    bool_product* new_prod = malloc(sizeof(bool_product));
-    NULL_CHECK(new_prod);
-    new_prod -> product = product;
+    bool_product* new_prod;
+    MALLOC(new_prod, sizeof(bool_product), ;);
+    MALLOC(new_prod -> product, sizeof(bool) * size, free(new_prod));
+    memcpy(new_prod -> product, product, sizeof(bool) * size);
     new_prod -> variables = size;
     return new_prod;
 }
@@ -82,6 +81,15 @@ bool product_of(bool_product* product, const bool input[]){
     return result;
 }
 
+
+int norm1(const bool* b, int size){
+    int sum = 0;
+    for(int i = 0; i < size; i++){
+        sum += b[i];
+    }
+    return sum;
+}
+
 /**
  * Get the decimal representation of the given binary number
  * @param values an array of booleans
@@ -104,16 +112,21 @@ int* binary2decimals(const bool *values, int size, int* returnsize){
 
     int dash_found = 1;
 
-    int* numbers = malloc(sizeof(int) * *returnsize);
+    int* numbers = malloc(sizeof(int) * *returnsize); //will contain all the values
     NULL_CHECK(numbers);
     memset(numbers, 0, sizeof(int) * *returnsize);
 
+    //for each index of values, adds the power of 2 to each index of numbers
     for(int i = 0; i < size; i++){
+
+        //if dash then half the numbers have to be updated
         if(values[size - i - 1] == dash){
-            for(int j = 0; j < size; j += 2){
-                numbers[j] += (int) exp2(i);
-                //TODO: not working
+            for(int j = 0; j < size; j += 2 * dash_found){
+                for(int k = 0; k < dash_found; k++){
+                    numbers[j + k] += (int) exp2(i);
+                }
             }
+
             dash_found *= 2;
         }else{
             for(int j = 0; j < size; j++){
@@ -128,11 +141,12 @@ int* binary2decimals(const bool *values, int size, int* returnsize){
 /**
  * Get the binary representation of the given number
  */
-bool* decimal2binary(int value, int size){
-    bool* binary = malloc(sizeof(bool) * size);
-    NULL_CHECK(binary);
+bvector decimal2binary(int value, int size){
+    bool* binary;
+    MALLOC(binary, sizeof(bool) * size, ;);
     for(int i = 0; i < size; i++){
-        binary[size - i - 1] = value % (int) exp2(i);
+        binary[size - i - 1] = value % 2;
+        value /= 2;
     }
     return binary;
 }
