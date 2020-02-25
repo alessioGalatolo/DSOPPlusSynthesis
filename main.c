@@ -10,17 +10,26 @@
 int main() {
     fplus* function = fplus_create_random(VARIABLES, MAX_VALUE);
     fplus_print(function);
-//    sopp* sopp = sopp_create();
+    sopp* sopp = sopp_create();
     implicant_plus* implicants = prime_implicants(function);
-//    for(int i = 0; i < implicants -> size; i++){
-//        for(int j = 0; j < function -> variables; j++){
-//            printf("%d\t", implicants -> implicants[i][j]);
-//        }
-//        printf("\n");
-//    }
-//    printf("\n");
+    printf("Final implicants: \n");
+    for(int i = 0; i < implicants -> size; i++){
+        for(int j = 0; j < function -> variables; j++){
+            printf("%d\t", implicants -> implicants[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 //
-//    essentials* e = essential_implicants(function, implicants);
+    essentials* e = essential_implicants(function, implicants);
+
+    for(int i = 0; i < e -> size; i++){
+        for(int j = 0; j < function -> variables; j++){
+            printf("%d\t", e -> implicants[i] . product -> product[j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 
 
 

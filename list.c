@@ -46,6 +46,14 @@ int list_length(list_t* list){
     return list -> current_length;
 }
 
+int list_for_each(list_t* list, int (*f) (void*, size_t*)){
+    for(size_t i = 0; i <  list -> current_length; i++){
+        if(!f(list -> list[i], list -> sizes + i))
+            return 0;
+    }
+    return 1;
+}
+
 int list_remove(list_t* l, void* obj){
 //    for(int i = 0; i < )
     return 0;

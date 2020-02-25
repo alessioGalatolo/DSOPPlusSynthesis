@@ -85,7 +85,8 @@ bool product_of(bool_product* product, const bool input[]){
 int norm1(const bool* b, int size){
     int sum = 0;
     for(int i = 0; i < size; i++){
-        sum += b[i];
+        if(b[i] <= 1)
+            sum += b[i];
     }
     return sum;
 }

@@ -6,7 +6,8 @@
 #include <assert.h>
 #include <math.h>
 
-#define PROBABILITY_NON_ZERO_VALUE 20
+
+#define PROBABILITY_NON_ZERO_VALUE 40
 
 //internal functions
 void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
@@ -224,6 +225,11 @@ void quickSort(bvector* arr, int low, int high, int variables, int* norms) {
     }
 }
 
+int free_f(void* p, size_t* s){
+    free(p);
+    *s = 0;
+    return 1;
+}
 
 /**
  * Quine–McCluskey algorithm for finding prime implicants
@@ -237,17 +243,10 @@ implicant_plus* prime_implicants(fplus* f){
     bvector* non_zeros = f -> non_zeros;
     bvector* result = NULL;
     int result_size = 0;
-    bool first_time = true; //true for the first cycle
+    list_t* old_2free = NULL;
+
 
     while(non_zeros_size > 0) {
-        //DEBUG
-        printf("Found these implicants\n");
-        for(int i = 0; i < non_zeros_size; i++){
-            for(int j = 0; j < f -> variables; j++){
-                printf("%d\t", non_zeros[i][j]);
-            }
-            printf("\n");
-        }
 
         //sort non zero values
         quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
@@ -285,6 +284,8 @@ implicant_plus* prime_implicants(fplus* f){
 
         if(list_length(impl_found) == 0){//end of cycle
             result = non_zeros;
+            result_size = non_zeros_size;
+            list_destroy(impl_found);
             break;
         }
 
@@ -295,12 +296,13 @@ implicant_plus* prime_implicants(fplus* f){
 
         non_zeros = list_as_array(impl_found, &non_zeros_size);
 
-        //todo: delete duplicates ?
-        //todo: free some heap
 
 
-
-        first_time = false;
+        if(old_2free) {
+            list_for_each(old_2free, free_f);
+            list_destroy(old_2free);
+        }
+        old_2free = impl_found;
     }
 
     implicant_plus* implicants;
@@ -311,6 +313,8 @@ implicant_plus* prime_implicants(fplus* f){
     //todo: delete duplicates!!!
     return implicants;
 }
+
+
 
 /**
  * Checks if the two vectors are joinable

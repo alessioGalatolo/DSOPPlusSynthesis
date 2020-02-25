@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 
+#define lambda(c_) ({ c_ _;})
+
 #define NULL_CHECK(x)\
     if((x) == NULL){\
         fprintf(stderr, "Null pointer");\
