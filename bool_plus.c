@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <math.h>
 
-#define PROBABILITY_NON_ZERO_VALUE 50
+#define PROBABILITY_NON_ZERO_VALUE 20
 
 //internal functions
 void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
@@ -190,8 +190,6 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
     for (int j = low; j < high; j++) {
         // If current element is smaller than the pivot
         int norm_other = norm1(arr[j], variables);
-        if(norms)
-            norms[j] = norm_other;
 
         // If current element is smaller than the pivot
         if(norm_other < norm_pivot){
@@ -199,6 +197,8 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
             bvector tmp = arr[i];
             arr[i] = arr[j];
             arr[j] = tmp;
+            if(norms)
+                norms[i] = norm_other;
         }
     }
 
@@ -251,101 +251,56 @@ implicant_plus* prime_implicants(fplus* f){
 
         //sort non zero values
         quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
-
-        //split them in classes
-        list_t *norms_split[non_zeros_size]; //list of lists
-        for (int i = 0; i < non_zeros_size; i++)
-            norms_split[i] = list_create();
-        int norms_splits_size = 0;
-        list_add(norms_split[0], non_zeros[0], sizeof(bvector));
-        for (int i = 1; i < non_zeros_size; i++) {
-            if (norms[i] > norms[i - 1])
-                norms_splits_size++;
-            list_add(norms_split[norms_splits_size], non_zeros[i], sizeof(bvector));
-        }
-        norms_splits_size++;
-
-        //FOR DEBUG
-        printf("Found these classes: \n");
-        for(int k = 0; k < norms_splits_size; k++) {
-            int size = 0;
-            bvector* list = list_as_array(norms_split[k], (size_t *) &size);
-            for (int i = 0; i < size; i++) {
-                for (int j = 0; j < f->variables; j++) {
-                    printf("%d\t", list[i][j]);
-                }
-                printf("\n");
-            }
-            printf("End of class\n");
-        }
-
-        //free old items if not first iteration
-        for(int i = 0; i < non_zeros_size; i++){
-            if(!first_time)
-                free(non_zeros[i]);
-            non_zeros[i] = NULL;
-        }
-        first_time = false;
-        non_zeros_size = 0;
+        bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been matched at least one time with another
+        memset(taken, 0, sizeof(bool) * non_zeros_size);
 
         list_t* impl_found = list_create();
 
+        //assert(norms contains matching norms of non_zeros elements);
+
+        int new_implicants_counter = 0;
 
         //join matching vectors
-        size_t old_list_size, list2_size;
-        bvector *old_list = list_as_array(norms_split[0], &old_list_size); //will store old latest list retrieved
-        for (int norms_index = 1; norms_index < norms_splits_size; norms_index++) {
-            bvector *list2 = list_as_array(norms_split[norms_index], &list2_size);
-
-            for (size_t i = 0; i < old_list_size; i++) {
-                int taken = 0; //store the times the current has been taken
-                for (size_t j = 0; j < list2_size; j++) {
-                    bvector elem = joinable_vectors(old_list[i], list2[j], f -> variables);
-                    if (elem) {
-                        taken++;
+        for(int i = 0; i < non_zeros_size; i++){
+            int j = i + 1;
+            int current_elem_class = norms[i];
+            int class_has_changed = false;
+            while(!class_has_changed && j < non_zeros_size){
+                if(norms[j] == current_elem_class)
+                    j++;
+                else if(norms[j] > current_elem_class + 1)
+                    class_has_changed = true;
+                else{
+                    bvector elem = joinable_vectors(non_zeros[i], non_zeros[j], f -> variables);
+                    if(elem){
+                        taken[i] = true;
+                        taken[j] = true;
                         list_add(impl_found, elem, sizeof(bvector));
-//                        non_zeros[non_zeros_size++] = elem;
                     }
-                }
-                if(taken == 0){
-                    list_add(impl_found, old_list[i], sizeof(bvector));
+                    j++;
                 }
             }
+        }
 
-            old_list = list2;
-            old_list_size = list2_size;
+
+        if(list_length(impl_found) == 0){//end of cycle
+            result = non_zeros;
+            break;
+        }
+
+        for(int i = 0; i < non_zeros_size; i++){
+            if(taken[i] == false)
+                list_add(impl_found, non_zeros[i], sizeof(bvector));
         }
 
         non_zeros = list_as_array(impl_found, &non_zeros_size);
-//        quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, NULL);
-//        for(i)
-        //todo: delete duplicates
 
-        if(non_zeros_size == 0){//end of cycle
-            bvector* gigarrey[norms_splits_size];
-            size_t sizes[norms_splits_size];
-            result_size = 0;
-            for(int i = 0; i < norms_splits_size; i++){
-                gigarrey[i] = list_as_array(norms_split[i], sizes + i);
-                result_size += sizes[i];
-            }
+        //todo: delete duplicates ?
+        //todo: free some heap
 
-            MALLOC(result, sizeof(bvector) * result_size, ;);
 
-            int current_list = 0;
-            int current_index = 0;
-            for(int i = 0; i < result_size; i++){
-                if(current_index < sizes[current_list])
-                    result[i] = gigarrey[current_list][current_index++];
-                else{
-                    current_list++;
-                    current_index = 0;
-                    result[i] = gigarrey[current_list][current_index];
-                }
-            }
-        }else
-            for(int i = 0; i < norms_splits_size; i++)
-                list_destroy(norms_split[i]);
+
+        first_time = false;
     }
 
     implicant_plus* implicants;
@@ -353,6 +308,7 @@ implicant_plus* prime_implicants(fplus* f){
     implicants -> implicants = result;
     implicants -> size = result_size;
 
+    //todo: delete duplicates!!!
     return implicants;
 }
 
