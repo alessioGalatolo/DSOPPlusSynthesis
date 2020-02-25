@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <math.h>
 
+#define PROBABILITY_NON_ZERO_VALUE 50
 
 //internal functions
 void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
@@ -47,10 +48,9 @@ fplus* fplus_create_random(int variables, int max_value){
     MALLOC(function -> non_zeros, sizeof(bvector) * f_size, free(function -> values); free(function));
 
     for(int i = 0; i < f_size; i++){
-        bool is_non_zero = random() % 2;
-        if(is_non_zero) {
+        bool is_non_zero = random() % 100;
+        if(is_non_zero < PROBABILITY_NON_ZERO_VALUE) {
             function -> values[i] = (int) ((random()) % max_value) + 1;
-            printf("Value: %d\n", function -> values[i]);
             function -> non_zeros[non_zeros_index++] = decimal2binary(i, variables); //end of array
         }else
             function -> values[i] = 0;
@@ -71,11 +71,32 @@ int fplus_value_of(fplus* f, bool input[]){
     return f -> values[binary2decimal(input, f -> variables)];
 }
 
+/**
+ * Prints function as Karnaugh map
+ * Will work only for n = 4
+ */
 void fplus_print(fplus* f){
+    assert(f -> variables == 4);
+    int matrix[4][4];
+
+    for(int i = 0; i < 4; i++){
+        for(int j = 0; j < 4; j++){
+            if(i < 2)
+                if(j < 2)
+                    matrix[j][i] = f -> values[i * 4 + j];
+                else
+                    matrix[4 - (j + 1)/2][i] = f -> values[i * 4 + j];
+            else if(j < 2)
+                matrix[j][4 - (i + 1)/2] = f -> values[i * 4 + j];
+            else
+                matrix[4 - (j + 1)/2][4 - (i + 1)/2] = f -> values[i * 4 + j];
+        }
+    }
+
     printf("Function table: \n");
     for(int i = 0; i < f -> variables; i++) {
         for (int j = 0; j < f -> variables; j++) {
-            printf("%d\t", f -> values[i * f -> variables + j]);
+            printf("%d\t", matrix[i][j]);
         }
         printf("\n");
     }
@@ -161,14 +182,16 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
     // pivot (Element to be placed at right position)
     bvector pivot = arr[high];
     int norm_pivot = norm1(pivot, variables);
-    norms[high] = norm_pivot;
+    if(norms)
+        norms[high] = norm_pivot;
 
     int i = (low - 1);  // Index of smaller element
 
     for (int j = low; j < high; j++) {
         // If current element is smaller than the pivot
         int norm_other = norm1(arr[j], variables);
-        norms[j] = norm_other;
+        if(norms)
+            norms[j] = norm_other;
 
         // If current element is smaller than the pivot
         if(norm_other < norm_pivot){
@@ -194,7 +217,8 @@ void quickSort(bvector* arr, int low, int high, int variables, int* norms) {
         /* pi is partitioning index, arr[pi] is now
            at right place */
         int pi = partition(arr, low, high, variables, norms);
-        norms[pi] = norm1(arr[pi], variables);
+        if(norms)
+            norms[pi] = norm1(arr[pi], variables);
         quickSort(arr, low, pi - 1, variables, norms);  // Before pi
         quickSort(arr, pi + 1, high, variables, norms); // After pi
     }
@@ -203,19 +227,20 @@ void quickSort(bvector* arr, int low, int high, int variables, int* norms) {
 
 /**
  * Quine–McCluskey algorithm for finding prime implicants
+ * //TODO: leaves room for improvement
  * @param f
  * @return
  */
 implicant_plus* prime_implicants(fplus* f){
     int norms[f -> size];
     int non_zeros_size = f -> size;
-    bvector non_zeros[non_zeros_size];
-    memcpy(non_zeros, f -> non_zeros, sizeof(bvector) * non_zeros_size);
+    bvector* non_zeros = f -> non_zeros;
     bvector* result = NULL;
     int result_size = 0;
     bool first_time = true; //true for the first cycle
 
     while(non_zeros_size > 0) {
+        //DEBUG
         printf("Found these implicants\n");
         for(int i = 0; i < non_zeros_size; i++){
             for(int j = 0; j < f -> variables; j++){
@@ -225,7 +250,7 @@ implicant_plus* prime_implicants(fplus* f){
         }
 
         //sort non zero values
-        quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, norms);
+        quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
 
         //split them in classes
         list_t *norms_split[non_zeros_size]; //list of lists
@@ -240,10 +265,11 @@ implicant_plus* prime_implicants(fplus* f){
         }
         norms_splits_size++;
 
+        //FOR DEBUG
         printf("Found these classes: \n");
         for(int k = 0; k < norms_splits_size; k++) {
             int size = 0;
-            bvector* list = list_as_array(norms_split[k], &size);
+            bvector* list = list_as_array(norms_split[k], (size_t *) &size);
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < f->variables; j++) {
                     printf("%d\t", list[i][j]);
@@ -262,6 +288,9 @@ implicant_plus* prime_implicants(fplus* f){
         first_time = false;
         non_zeros_size = 0;
 
+        list_t* impl_found = list_create();
+
+
         //join matching vectors
         size_t old_list_size, list2_size;
         bvector *old_list = list_as_array(norms_split[0], &old_list_size); //will store old latest list retrieved
@@ -269,11 +298,17 @@ implicant_plus* prime_implicants(fplus* f){
             bvector *list2 = list_as_array(norms_split[norms_index], &list2_size);
 
             for (size_t i = 0; i < old_list_size; i++) {
+                int taken = 0; //store the times the current has been taken
                 for (size_t j = 0; j < list2_size; j++) {
                     bvector elem = joinable_vectors(old_list[i], list2[j], f -> variables);
                     if (elem) {
-                        non_zeros[non_zeros_size++] = elem;
+                        taken++;
+                        list_add(impl_found, elem, sizeof(bvector));
+//                        non_zeros[non_zeros_size++] = elem;
                     }
+                }
+                if(taken == 0){
+                    list_add(impl_found, old_list[i], sizeof(bvector));
                 }
             }
 
@@ -281,6 +316,9 @@ implicant_plus* prime_implicants(fplus* f){
             old_list_size = list2_size;
         }
 
+        non_zeros = list_as_array(impl_found, &non_zeros_size);
+//        quickSort(non_zeros, 0, non_zeros_size - 1, f -> variables, NULL);
+//        for(i)
         //todo: delete duplicates
 
         if(non_zeros_size == 0){//end of cycle

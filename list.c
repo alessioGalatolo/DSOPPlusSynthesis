@@ -46,6 +46,10 @@ int list_length(list_t* list){
     return list -> current_length;
 }
 
+int list_remove(list_t* l, void* obj){
+//    for(int i = 0; i < )
+    return 0;
+}
 
 void* list_as_array(list_t* list, size_t* size){
     if(size)
