@@ -31,6 +31,14 @@ int main() {
     }
     printf("\n");
 
+    for(int i = 0; i < e -> size; i++){
+        for(int j = 0; j < function -> variables; j++){
+            printf("%d\t", e -> points[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
 
 
     return 0;

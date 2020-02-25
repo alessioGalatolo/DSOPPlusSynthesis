@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 
-#define lambda(c_) ({ c_ _;})
 
 #define NULL_CHECK(x)\
     if((x) == NULL){\
@@ -25,7 +24,6 @@
     if(tmp == NULL){\
         fprintf(stderr, "Realloc returned a null pointer");\
         clean;\
-        return 0;\
     }\
     x = tmp;
 

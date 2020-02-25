@@ -239,7 +239,7 @@ int free_f(void* p, size_t* s){
  */
 implicant_plus* prime_implicants(fplus* f){
     int norms[f -> size];
-    int non_zeros_size = f -> size;
+    size_t non_zeros_size = f -> size;
     bvector* non_zeros = f -> non_zeros;
     bvector* result = NULL;
     int result_size = 0;
@@ -257,11 +257,9 @@ implicant_plus* prime_implicants(fplus* f){
 
         //assert(norms contains matching norms of non_zeros elements);
 
-        int new_implicants_counter = 0;
-
         //join matching vectors
-        for(int i = 0; i < non_zeros_size; i++){
-            int j = i + 1;
+        for(size_t i = 0; i < non_zeros_size; i++){
+            size_t j = i + 1;
             int current_elem_class = norms[i];
             int class_has_changed = false;
             while(!class_has_changed && j < non_zeros_size){
@@ -289,7 +287,7 @@ implicant_plus* prime_implicants(fplus* f){
             break;
         }
 
-        for(int i = 0; i < non_zeros_size; i++){
+        for(size_t i = 0; i < non_zeros_size; i++){
             if(taken[i] == false)
                 list_add(impl_found, non_zeros[i], sizeof(bvector));
         }
@@ -348,16 +346,16 @@ bvector joinable_vectors(const bool* v1, const bool* v2, int size){
 
 /**
  * Finds the essential implicants of the function from the prime implicants
+ * !!!Exponential in space!!!
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
 essentials* essential_implicants(fplus* f, implicant_plus* implicants){
-    int f_size = (int) exp2(f -> variables);
+    int f_size = (int) exp2(f -> variables); //unnecessary as only non_zero points are needed
     list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
-    bvector* essential_implicants = malloc(sizeof(bvector) * implicants -> size); //stores the essential points
-    NULL_CHECK(essential_implicants);
-    int ei_index = 0; //index of above and below array;
-    bvector* essential_points = malloc(sizeof(bvector) * implicants -> size);
-    NULL_CHECK(essential_points);
+    bvector essential_implicants[implicants -> size]; //stores the essential points
+    int e_index = 0; //index of above and below array;
+    bvector* essential_points;
+    MALLOC(essential_points, sizeof(bvector) * f_size, ;);
 
     //init the array of points
     for(int i = 0; i < f_size; i++){
@@ -381,27 +379,29 @@ essentials* essential_implicants(fplus* f, implicant_plus* implicants){
             fprintf(stderr, "Some error occurred, an essential point has not been covered");
             return NULL;
         }else if(l_size == 1){
-            essential_implicants[ei_index] = list_get(points[index], 0, 0);
-            essential_points[ei_index++] = f -> non_zeros[i];
+            essential_implicants[e_index] = list_get(points[index], 0, 0);
+            essential_points[e_index++] = f -> non_zeros[i];
         }
     }
 
-    //resize memory
-    NULL_CHECK(essential_implicants = realloc(essential_implicants, sizeof(bvector) * ei_index));
-    NULL_CHECK(essential_points = realloc(essential_points, sizeof(bvector) * ei_index));
+    //TODO; remove duplicates from essential_implicants
 
-    essentials* e = malloc(sizeof(essentials));
-    e -> implicants = implicants2sop(essential_implicants, ei_index, f -> variables);
+    REALLOC(essential_points, sizeof(bvector) * e_index, ;);
+
+    essentials* e;
+    MALLOC(e, sizeof(essentials), ;);
+    e -> implicants = implicants2sop(essential_implicants, e_index, f -> variables);
     e -> points = essential_points;
-    e -> size = ei_index;
-//    free(essential_implicants);
+    e -> size = e_index;
+    for(int i = 0; i < f_size; i++)
+        list_destroy(points[i]);
     return e;
 }
 
 
 product_plus* implicants2sop(bvector* implicants, int size, int variables){
-    product_plus* product_array = malloc(sizeof(product_plus) * size);
-    NULL_CHECK(product_array);
+    product_plus* product_array;
+    MALLOC(product_array, sizeof(product_plus) * size, ;);
 
     for(int i = 0; i < size; i++){
         for(int j = 0; j < variables; j++){
@@ -410,7 +410,6 @@ product_plus* implicants2sop(bvector* implicants, int size, int variables){
         }
         (product_array + i) -> product = product_create(implicants[i], variables);
         (product_array + i) -> coeff = 1;
-//        free(implicants[i]); //???
     }
 
     return product_array;

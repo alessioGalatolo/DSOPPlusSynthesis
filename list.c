@@ -21,7 +21,7 @@ int list_add(list_t *l, void* value, size_t size){
         return 0;
     //reached max length
     if(l -> current_length >= l -> max_length) {
-        REALLOC(l -> list, sizeof(void*) * l -> max_length * LIST_INCREMENT,;);
+        REALLOC(l -> list, sizeof(void*) * l -> max_length * LIST_INCREMENT, return 0;);
         l -> max_length *= LIST_INCREMENT;
     }
 
