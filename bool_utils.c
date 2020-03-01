@@ -81,6 +81,13 @@ bool product_of(bool_product* product, const bool input[]){
     return result;
 }
 
+bool bvector_equals(bvector b1, bvector b2, int variables){
+    for(int i = 0; i < variables; i++)
+        if(b1[i] != b2[i])
+            return false;
+    return true;
+}
+
 
 int norm1(const bool* b, int size){
     int sum = 0;

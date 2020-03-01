@@ -68,10 +68,12 @@ void* list_as_array(list_t* list, size_t* size){
 /**
  * Frees the list from the heap, also frees all the elements pointed
  */
-void list_destroy(list_t* list){
-    for(size_t i = 0; i < list -> current_length; i++){
-        free(list -> list[i]);
+void list_destroy(list_t* list) {
+    if (list != NULL) {
+        for (size_t i = 0; i < list -> current_length; i++) {
+            free(list->list[i]);
+        }
+        free(list->sizes);
+        free(list);
     }
-    free(list -> sizes);
-    free(list);
 }

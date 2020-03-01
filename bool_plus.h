@@ -14,42 +14,45 @@
 typedef struct{
     bool_product* product;
     int coeff;
-}product_plus;
+}productp_t;
 
 typedef struct{
-    list_t* products; //list of products of product_plus
+    list_t* products; //list of products of productp_t
     int size;
-}sopp; //sop plus form
+}sopp_t; //sop plus form
 
 typedef struct {
     int* values;
     int variables; //number of variables taken as input, 2^variables = size of above array
     bool** non_zeros; //array with the index of non-zero values written as binary numbers
     int size; //size of above array
-}fplus;
+}fplus_t;
 
 typedef struct {
     bool** implicants;
     int size;
-}implicant_plus;
+}implicantp_t;
 
 typedef struct {
-    product_plus* implicants;
+    productp_t* implicants;
+    int impl_size;
     bool** points;
-    int size;
-}essentials;
+    int points_size;
+}essentialsp_t;
 
-fplus* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
-fplus* fplus_create_random(int variables, int max_value); //creates a boolean plus function with random outputs
-int fplus_value_of(fplus*, bool*); //returns the output of the function with the given input
-void fplus_print(fplus*);
+fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
+fplus_t* fplus_create_random(int variables, int max_value); //creates a boolean plus function with random outputs
+int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
+void fplus_print(fplus_t*); //prints the function as Karnaugh map <=> n_variables = 4
+void fplus_destroy(fplus_t*); //frees the heap taken by the function
 
-sopp* sopp_create();
-int sopp_add(sopp*, product_plus*);
-int sopp_value_of(sopp*, bool*);
-bool is_sopp_of(sopp*, fplus);
-implicant_plus* prime_implicants(fplus*);
-essentials* essential_implicants(fplus*, implicant_plus*);
+sopp_t* sopp_create();
+void sopp_destroy(sopp_t*);
+int sopp_add(sopp_t*, productp_t*);
+int sopp_value_of(sopp_t*, bool*);
+bool is_sopp_of(sopp_t*, fplus_t);
+implicantp_t* prime_implicants(fplus_t*);
+essentialsp_t* essential_implicants(fplus_t*, implicantp_t*);
 
 
 

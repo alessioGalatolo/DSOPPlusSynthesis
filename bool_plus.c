@@ -10,9 +10,9 @@
 #define PROBABILITY_NON_ZERO_VALUE 40
 
 //internal functions
-void binaries(bool value[], int i, sopp *sop, fplus* fun, bool *result);
+void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
 bvector joinable_vectors(const bool*, const bool*, int size);
-product_plus* implicants2sop(bvector*, int size, int variables);
+productp_t* implicants2sop(bvector*, int size, int variables, int* final_size);
 
 /**
  * Creates a boolean plus function with the given parameters
@@ -22,8 +22,8 @@ product_plus* implicants2sop(bvector*, int size, int variables);
  * @param size size of the non_zeros array
  * @return A pointer to the function
  */
-fplus* fplus_create(int* values, bvector* non_zeros, int variables, int size){
-    fplus* function = malloc(sizeof(fplus));
+fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
+    fplus_t* function = malloc(sizeof(fplus_t));
     NULL_CHECK(function);
     function -> values = values;
     function -> variables = variables;
@@ -38,13 +38,13 @@ fplus* fplus_create(int* values, bvector* non_zeros, int variables, int size){
  * @param variables Number of variables taken by the function
  * @return A pointer to the function
  */
-fplus* fplus_create_random(int variables, int max_value){
+fplus_t* fplus_create_random(int variables, int max_value){
     srandom(time(NULL));
-    fplus* function;
+    fplus_t* function;
     int f_size = (int) exp2(variables);
     int non_zeros_index = 0;
 
-    MALLOC(function, sizeof(fplus),;);
+    MALLOC(function, sizeof(fplus_t), ;);
     MALLOC(function -> values, sizeof(int) * f_size, free(function));
     MALLOC(function -> non_zeros, sizeof(bvector) * f_size, free(function -> values); free(function));
 
@@ -68,7 +68,7 @@ fplus* fplus_create_random(int variables, int max_value){
  * @param input The input to the function given as a vector of bool
  * @return The output of the function
  */
-int fplus_value_of(fplus* f, bool input[]){
+int fplus_value_of(fplus_t* f, bool input[]){
     return f -> values[binary2decimal(input, f -> variables)];
 }
 
@@ -76,7 +76,7 @@ int fplus_value_of(fplus* f, bool input[]){
  * Prints function as Karnaugh map
  * Will work only for n = 4
  */
-void fplus_print(fplus* f){
+void fplus_print(fplus_t* f){
     assert(f -> variables == 4);
     int matrix[4][4];
 
@@ -105,16 +105,30 @@ void fplus_print(fplus* f){
     fflush(stdout);
 }
 
+void fplus_destroy(fplus_t* f){
+    for(int i = 0; i < f -> size; i++){
+        free(f -> non_zeros[i]);
+    }
+    free(f -> non_zeros);
+    free(f -> values);
+    free(f);
+}
+
 /**
  * Creates and initializes a sop plus form
- * @return The sopp form
+ * @return The sopp_t form
  */
-sopp* sopp_create(){
-    sopp* sopp = malloc(sizeof(sopp));
-    NULL_CHECK(sopp);
+sopp_t* sopp_create(){
+    sopp_t* sopp;
+    MALLOC(sopp, sizeof(sopp_t), ;);
     sopp -> products = list_create();
     sopp -> size = 0;
     return sopp;
+}
+
+void sopp_destroy(sopp_t* sopp){
+    list_destroy(sopp -> products);
+    free(sopp);
 }
 
 /**
@@ -123,8 +137,8 @@ sopp* sopp_create(){
  * @param sop1 The product to add
  * @return true if the operation was successful
  */
-int sopp_add(sopp* sopp, product_plus* sop1){
-    list_add(sopp -> products, sop1, sizeof(sop1));
+int sopp_add(sopp_t* sopp, productp_t* sop1){
+    list_add(sopp -> products, sop1, sizeof(sop1)); //TODO: error?
     (sopp -> size)++;
     return sopp -> products == NULL ? 0: 1;
 }
@@ -133,12 +147,12 @@ int sopp_add(sopp* sopp, product_plus* sop1){
  * Checks if the sop plus for the given input equals the value
  * @return true if the output matches
  */
-int sopp_value_equals(sopp* sop, bool input[], int value){
+int sopp_value_equals(sopp_t* sop, bool input[], int value){
     int sopp_value = 0;
     size_t size = 0;
     void** list = list_as_array(sop -> products, &size); //sop -> products;
     for(size_t i = 0; i < size; i++){
-        product_plus* current_p = list[i];
+        productp_t* current_p = list[i];
         sopp_value += current_p -> coeff * product_of(current_p -> product, input);
     }
     return sopp_value == value;
@@ -146,11 +160,11 @@ int sopp_value_equals(sopp* sop, bool input[], int value){
 
 
 /**
- * Checks if sopp is a correct sop plus form of the function fun
+ * Checks if sopp_t is a correct sop plus form of the function fun
  * time: exponential in number of variables
  * @return true it is valid
  */
-bool sop_plus_of(sopp* sopp, fplus* fun){
+bool sop_plus_of(sopp_t* sopp, fplus_t* fun){
     bool value[sopp -> size];
     memset(value, 0, sizeof(bool) * sopp -> size);
     bool result = 1;
@@ -165,7 +179,7 @@ bool sop_plus_of(sopp* sopp, fplus* fun){
  * and checks if the non zero values of the fun matches the non zero values
  * of the sop plus form
  */
-void binaries(bool value[], int i, sopp* sop, fplus* fun, bvector result) {
+void binaries(bool value[], int i, sopp_t* sop, fplus_t* fun, bvector result) {
     if (i == 0) {
         int fvalue = fplus_value_of(fun, value);
         *result = *result && (fvalue == 0 || sopp_value_equals(sop, value, fvalue));
@@ -225,6 +239,13 @@ void quickSort(bvector* arr, int low, int high, int variables, int* norms) {
     }
 }
 
+/**
+ * Frees a given heap pointer
+ * Used to call list_for_each
+ * @param p The pointer
+ * @param s The size of the memory, will be set to 0 after free
+ * @return always true
+ */
 int free_f(void* p, size_t* s){
     free(p);
     *s = 0;
@@ -237,7 +258,7 @@ int free_f(void* p, size_t* s){
  * @param f
  * @return
  */
-implicant_plus* prime_implicants(fplus* f){
+implicantp_t* prime_implicants(fplus_t* f){
     int norms[f -> size];
     size_t non_zeros_size = f -> size;
     bvector* non_zeros = f -> non_zeros;
@@ -303,8 +324,8 @@ implicant_plus* prime_implicants(fplus* f){
         old_2free = impl_found;
     }
 
-    implicant_plus* implicants;
-    MALLOC(implicants, sizeof(implicant_plus), free(result));
+    implicantp_t* implicants;
+    MALLOC(implicants, sizeof(implicantp_t), free(result));
     implicants -> implicants = result;
     implicants -> size = result_size;
 
@@ -349,8 +370,8 @@ bvector joinable_vectors(const bool* v1, const bool* v2, int size){
  * !!!Exponential in space!!!
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
-essentials* essential_implicants(fplus* f, implicant_plus* implicants){
-    int f_size = (int) exp2(f -> variables); //unnecessary as only non_zero points are needed
+essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
+    int f_size = (int) exp2(f -> variables); //exp size unnecessary as only non_zero points are needed
     list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
     bvector essential_implicants[implicants -> size]; //stores the essential points
     int e_index = 0; //index of above and below array;
@@ -384,33 +405,60 @@ essentials* essential_implicants(fplus* f, implicant_plus* implicants){
         }
     }
 
-    //TODO; remove duplicates from essential_implicants
-
     REALLOC(essential_points, sizeof(bvector) * e_index, ;);
 
-    essentials* e;
-    MALLOC(e, sizeof(essentials), ;);
-    e -> implicants = implicants2sop(essential_implicants, e_index, f -> variables);
+    essentialsp_t* e;
+    MALLOC(e, sizeof(essentialsp_t), ;);
+    e -> implicants = implicants2sop(essential_implicants, e_index, f -> variables, &e -> impl_size);
     e -> points = essential_points;
-    e -> size = e_index;
-    for(int i = 0; i < f_size; i++)
+    e -> points_size = e_index;
+
+    for(int i = 0; i < f_size; i++) {
+        list_for_each(points[i], free_f);
         list_destroy(points[i]);
+    }
     return e;
 }
 
+/**
+ * Converts a boolean vector array to a product array
+ * Also removes duplicates if found (O(n^2)), may be improved
+ * @param final_size Sets in this variable the size without the duplicates
+ * @return The newly created array
+ */
+productp_t* implicants2sop(bvector* implicants, int size, int variables, int* final_size){
+    int duplicates[size];
+    int duplicates_found = 0;
+    memset(duplicates, 0, sizeof(int) * size);
 
-product_plus* implicants2sop(bvector* implicants, int size, int variables){
-    product_plus* product_array;
-    MALLOC(product_array, sizeof(product_plus) * size, ;);
-
-    for(int i = 0; i < size; i++){
-        for(int j = 0; j < variables; j++){
-            if(implicants[i][j] == dash)
-                implicants[i][j] = not_present;
+//    tag duplicates
+    for(int i = 0; i < size - 1; i++){
+        for(int j = i; j < size; j++) {
+            if (bvector_equals(implicants[i], implicants[j], variables)) {
+                duplicates[j] = true;
+                duplicates_found++;
+            }
         }
-        (product_array + i) -> product = product_create(implicants[i], variables);
-        (product_array + i) -> coeff = 1;
     }
+
+    productp_t* product_array;
+    MALLOC(product_array, sizeof(productp_t) * (size - duplicates_found), ;);
+    int array_index = 0;
+
+    //copy only non duplicates
+    for(int i = 0; i < size; i++){
+        if(!duplicates[i]) {
+            for (int j = 0; j < variables; j++) {
+                if (implicants[i][j] == dash)
+                    implicants[i][j] = not_present;
+            }
+            (product_array + array_index) -> product = product_create(implicants[i], variables);
+            (product_array + array_index) -> coeff = 1;
+            array_index++;
+        }
+    }
+
+    *final_size = size - duplicates_found;
 
     return product_array;
 }
