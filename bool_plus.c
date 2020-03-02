@@ -7,7 +7,7 @@
 #include <math.h>
 
 
-#define PROBABILITY_NON_ZERO_VALUE 40
+#define PROBABILITY_NON_ZERO_VALUE 100
 
 //internal functions
 void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
@@ -199,8 +199,6 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
     // pivot (Element to be placed at right position)
     bvector pivot = arr[high];
     int norm_pivot = norm1(pivot, variables);
-    if(norms)
-        norms[high] = norm_pivot;
 
     int i = (low - 1);  // Index of smaller element
 
@@ -221,6 +219,8 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
     bvector tmp = arr[i + 1];
     arr[i + 1] = arr[high];
     arr[high] = tmp;
+    if(norms)
+        norms[i + 1] = norm_pivot;
     return i + 1;
 }
 
@@ -260,10 +260,9 @@ int free_f(void* p, size_t* s){
  * @return
  */
 implicantp_t* prime_implicants(fplus_t* f){
-    int norms[f -> size];
     size_t non_zeros_size = f -> size;
-    bvector* result = NULL;
-    int result_size = 0;
+    bvector* result = NULL; //will store prime implicants
+    int result_size = 0; //will store number of prime implicants
     list_t* old_list_2free = NULL;
     bvector* non_zeros;
     MALLOC(non_zeros, sizeof(bvector) * non_zeros_size, ;);
@@ -271,16 +270,10 @@ implicantp_t* prime_implicants(fplus_t* f){
 
 
     while(true) {
-
+        int norms[non_zeros_size]; //will contain norm of each vector
         //sort non zero values
-        for(int i = 0; i < non_zeros_size; i++){
-            for(int j = 0; j < f -> variables; j++){
-                fprintf(stderr, "%d ", non_zeros[i][j]);
-            }
-            fprintf(stderr, "\n");
-        }
-        fprintf(stderr, "\n");
         quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
+
         bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
         memset(taken, 0, sizeof(bool) * non_zeros_size);
 
@@ -289,7 +282,6 @@ implicantp_t* prime_implicants(fplus_t* f){
         //assert(norms contains matching norms of non_zeros elements);
 
         //join matching vectors
-
         for(size_t i = 0; i < non_zeros_size; i++){
             size_t j = i + 1;
             int current_elem_class = norms[i];
@@ -310,7 +302,6 @@ implicantp_t* prime_implicants(fplus_t* f){
                 }
             }
         }
-
 
         if(list_length(impl_found) == 0){//end of cycle
             if(!old_list_2free){
@@ -353,6 +344,19 @@ implicantp_t* prime_implicants(fplus_t* f){
 
         //set as new array the joint implicants found
         non_zeros = list_as_array(impl_found, &non_zeros_size);
+        //delete duplicates
+        int duplicates_found = 0;
+        for(int i = 0; i < non_zeros_size - 1 - duplicates_found; i++){
+            for(int j = i + 1; j < non_zeros_size - duplicates_found; j++) {
+                if (bvector_equals(non_zeros[i], non_zeros[j], f -> variables)) {
+                    duplicates_found++;
+//                    free(non_zeros[j]); //THIS WILL LEAK MEMORY
+                    non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
+                    non_zeros[non_zeros_size - duplicates_found] = NULL;
+                }
+            }
+        }
+        non_zeros_size -= duplicates_found;
     }
 
 

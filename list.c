@@ -6,6 +6,7 @@
 
 #define LIST_INIT_SIZE 100
 #define LIST_INCREMENT 2
+
 list_t* list_create(){
     list_t* list;
     MALLOC(list, sizeof(list_t),;);
@@ -20,8 +21,9 @@ int list_add(list_t *l, void* value, size_t size){
     if(!l)
         return 0;
     //reached max length
-    if(l -> current_length >= l -> max_length) {
-        REALLOC(l -> list, sizeof(void*) * l -> max_length * LIST_INCREMENT, return 0;);
+    if(l -> current_length == l -> max_length) {
+        REALLOC(l -> list, sizeof(void*) * (l -> max_length) * LIST_INCREMENT, return 0;);
+        REALLOC(l -> sizes, sizeof(size_t) * (l -> max_length) * LIST_INCREMENT, return 0;);
         l -> max_length *= LIST_INCREMENT;
     }
 
@@ -29,7 +31,7 @@ int list_add(list_t *l, void* value, size_t size){
 //    memcpy(l -> list[l -> current_length], value, size);
     l -> list[l -> current_length] = value;
     l -> sizes[l -> current_length] = size;
-    l -> current_length++;
+    (l -> current_length)++;
     return 1;
 }
 
