@@ -82,6 +82,8 @@ bool product_of(bool_product* product, const bool input[]){
 }
 
 bool bvector_equals(bvector b1, bvector b2, int variables){
+    if(!b1 || !b2)
+        return false;
     for(int i = 0; i < variables; i++)
         if(b1[i] != b2[i])
             return false;
@@ -111,25 +113,25 @@ int binary2decimal(const bool *values, int size) {
     return number;
 }
 
-int* binary2decimals(const bool *values, int size, int* returnsize){
-    *returnsize = 1;
+int* binary2decimals(const bool *values, int size, int* return_size){
+    *return_size = 1;
     for(int i = 0; i < size; i++){
         if(values[i] == dash)
-            *returnsize *= 2;
+            *return_size *= 2;
     }
 
     int dash_found = 1;
 
-    int* numbers = malloc(sizeof(int) * *returnsize); //will contain all the values
-    NULL_CHECK(numbers);
-    memset(numbers, 0, sizeof(int) * *returnsize);
+    int* numbers;
+    MALLOC(numbers, sizeof(int) * *return_size,;); //will contain all the values
+    memset(numbers, 0, sizeof(int) * *return_size);
 
     //for each index of values, adds the power of 2 to each index of numbers
     for(int i = 0; i < size; i++){
 
         //if dash then half the numbers have to be updated
         if(values[size - i - 1] == dash){
-            for(int j = 0; j < size; j += 2 * dash_found){
+            for(int j = 0; j < *return_size; j += 2 * dash_found){
                 for(int k = 0; k < dash_found; k++){
                     numbers[j + k] += (int) exp2(i);
                 }
@@ -137,7 +139,7 @@ int* binary2decimals(const bool *values, int size, int* returnsize){
 
             dash_found *= 2;
         }else{
-            for(int j = 0; j < size; j++){
+            for(int j = 0; j < *return_size; j++){
                 numbers[j] += values[size - i - 1] * (int) exp2(i);
             }
         }

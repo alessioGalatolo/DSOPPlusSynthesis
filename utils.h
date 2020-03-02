@@ -20,11 +20,13 @@
     }
 
 #define REALLOC(x, s, clean)\
-    void* tmp = realloc(x, s);\
-    if(tmp == NULL){\
-        fprintf(stderr, "Realloc returned a null pointer");\
-        clean;\
-    }\
-    x = tmp;
+    {\
+        void* tmp = realloc(x, s);\
+        if(tmp == NULL){\
+            fprintf(stderr, "Realloc unable to allocate %ld memory. Returned a null pointer", s);\
+            clean;\
+        }\
+        x = tmp;\
+    }
 
 #endif //SOP_SYNTHESIS_UTILS_H

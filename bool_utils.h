@@ -33,7 +33,7 @@ typedef struct{
 /* Utility functions */
 int norm1(const bool*, int size);
 int binary2decimal(const bool *values, int size);
-int* binary2decimals(const bool *values, int size, int* returnsize); //same as above but it may return more decimal if values contains dashes
+int* binary2decimals(const bool *values, int size, int* return_size); //same as above but it may return more decimal if values contains dashes
 bvector decimal2binary(int value, int size);
 bool bvector_equals(bvector, bvector, int size);
 

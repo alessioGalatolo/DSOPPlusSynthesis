@@ -25,8 +25,9 @@ int list_add(list_t *l, void* value, size_t size){
         l -> max_length *= LIST_INCREMENT;
     }
 
-    MALLOC(l -> list[l -> current_length], size,;);
-    memcpy(l -> list[l -> current_length], value, size);
+//    MALLOC(l -> list[l -> current_length], size,;);
+//    memcpy(l -> list[l -> current_length], value, size);
+    l -> list[l -> current_length] = value;
     l -> sizes[l -> current_length] = size;
     l -> current_length++;
     return 1;
@@ -47,7 +48,7 @@ int list_length(list_t* list){
 }
 
 int list_for_each(list_t* list, int (*f) (void*, size_t*)){
-    for(size_t i = 0; i <  list -> current_length; i++){
+    for(size_t i = 0; i < list -> current_length; i++){
         if(!f(list -> list[i], list -> sizes + i))
             return 0;
     }
@@ -70,10 +71,8 @@ void* list_as_array(list_t* list, size_t* size){
  */
 void list_destroy(list_t* list) {
     if (list != NULL) {
-        for (size_t i = 0; i < list -> current_length; i++) {
-            free(list->list[i]);
-        }
-        free(list->sizes);
+        free(list -> list);
+        free(list -> sizes);
         free(list);
     }
 }
