@@ -90,10 +90,15 @@ bool bvector_equals(bvector b1, bvector b2, int variables){
     return true;
 }
 
-
-int norm1(const bool* b, int size){
+/**
+ * calculates the norm 1 of a boolean vector
+ * @param b The vector
+ * @param variables The size of the vector
+ * @return The sum of the elements of the vector
+ */
+int norm1(const bool* b, int variables){
     int sum = 0;
-    for(int i = 0; i < size; i++){
+    for(int i = 0; i < variables; i++){
         if(b[i] <= 1)
             sum += b[i];
     }

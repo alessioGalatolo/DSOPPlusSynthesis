@@ -45,6 +45,7 @@ fplus_t* fplus_create_random(int variables, int max_value); //creates a boolean 
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
 void fplus_print(fplus_t*); //prints the function as Karnaugh map <=> n_variables = 4
 void fplus_destroy(fplus_t*); //frees the heap taken by the function
+fplus_t* fplus_copy(fplus_t*);
 
 sopp_t* sopp_create();
 void sopp_destroy(sopp_t*);
@@ -53,8 +54,10 @@ int sopp_value_of(sopp_t*, bool*);
 bool is_sopp_of(sopp_t*, fplus_t);
 implicantp_t* prime_implicants(fplus_t*); //returns the prime implicants of the given bool plus function
 void implicants_destroy(implicantp_t*); //frees the heap taken by the above function
+void implicants_print(implicantp_t*, int);
 essentialsp_t* essential_implicants(fplus_t*, implicantp_t*);
 void essentials_destroy(essentialsp_t*); //frees the heap taken by the above function
+void essentials_print(essentialsp_t*, int); //prints the implicants and the points
 
 
 

@@ -116,6 +116,18 @@ void fplus_destroy(fplus_t* f){
     free(f);
 }
 
+fplus_t* fplus_copy(fplus_t* f){
+    fplus_t* f_copy;
+    MALLOC(f_copy, sizeof(fplus_t), ;);
+    f_copy -> variables = f -> variables;
+    f_copy -> size = f -> size;
+    MALLOC(f_copy -> values, sizeof(int) * exp2(f -> variables), free(f_copy););
+    MALLOC(f_copy -> non_zeros, sizeof(bool*) * f -> size, free(f_copy -> values); free(f_copy););
+
+    assert(false);
+    //memcpy
+}
+
 /**
  * Creates and initializes a sop plus form
  * @return The sopp_t form
@@ -219,8 +231,10 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
     bvector tmp = arr[i + 1];
     arr[i + 1] = arr[high];
     arr[high] = tmp;
-    if(norms)
+    if(norms) {
+        norms[high] = norm1(arr[i + 1], variables);
         norms[i + 1] = norm_pivot;
+    }
     return i + 1;
 }
 
@@ -273,6 +287,13 @@ implicantp_t* prime_implicants(fplus_t* f){
         int norms[non_zeros_size]; //will contain norm of each vector
         //sort non zero values
         quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
+
+        for(size_t i = 0; i < non_zeros_size; i++)
+//            assert(norm1(non_zeros[i], f -> variables) == norms[i]);
+            norms[i] = norm1(non_zeros[i], f -> variables);
+        //TODO: fix norm calculation in quick sort
+
+
 
         bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
         memset(taken, 0, sizeof(bool) * non_zeros_size);
@@ -346,19 +367,21 @@ implicantp_t* prime_implicants(fplus_t* f){
         non_zeros = list_as_array(impl_found, &non_zeros_size);
         //delete duplicates
         int duplicates_found = 0;
-        for(int i = 0; i < non_zeros_size - 1 - duplicates_found; i++){
-            for(int j = i + 1; j < non_zeros_size - duplicates_found; j++) {
+        for(size_t i = 0; i < non_zeros_size - 1 - duplicates_found; i++){
+            for(size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
                 if (bvector_equals(non_zeros[i], non_zeros[j], f -> variables)) {
                     duplicates_found++;
 //                    free(non_zeros[j]); //THIS WILL LEAK MEMORY
                     non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
                     non_zeros[non_zeros_size - duplicates_found] = NULL;
+                    j--; //recheck current element
                 }
             }
         }
         non_zeros_size -= duplicates_found;
-    }
 
+
+    }
 
     //delete duplicates
     int duplicates_found = 0;
@@ -369,6 +392,7 @@ implicantp_t* prime_implicants(fplus_t* f){
                 free(result[j]);
                 result[j] = result[result_size - duplicates_found];
                 result[result_size - duplicates_found] = NULL;
+                j--;
             }
         }
     }
@@ -424,6 +448,17 @@ void implicants_destroy(implicantp_t* impl){
     free(impl);
 }
 
+void implicants_print(implicantp_t* impl, int variables){
+    printf("Final implicants: \n");
+    for(int i = 0; i < impl -> size; i++){
+        for(int j = 0; j < variables; j++){
+            printf("%d\t", impl -> implicants[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 /**
  * Finds the essential implicants of the function from the prime implicants
  * !!!Exponential in space!!!
@@ -476,9 +511,9 @@ essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
     e -> points = essential_points;
     e -> points_size = e_index;
 
-    for(int i = 0; i < f_size; i++) {
-        list_destroy(points[i]);
-    }
+//    for(int i = 0; i < f_size; i++) {
+//        list_destroy(points[i]);
+//    }
     return e;
 }
 
@@ -535,10 +570,27 @@ void essentials_destroy(essentialsp_t* e){
     free(e);
 }
 
+void essentials_print(essentialsp_t* e, int variables){
+    printf("Essential implicants: \n");
+    for(int i = 0; i < e -> impl_size; i++){
+        for(int j = 0; j < variables; j++){
+            printf("%d\t", (e -> implicants + i) -> product -> product[j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    printf("Essential points: \n");
+    for(int i = 0; i < e -> points_size; i++){
+        for(int j = 0; j < variables; j++){
+            printf("%d\t", e -> points[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 void productp_destroy(productp_t *p) {
     free(p -> product -> product);
     free(p -> product);
 }
-
-
-

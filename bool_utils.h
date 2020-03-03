@@ -31,7 +31,7 @@ typedef struct{
 }sop_t;
 
 /* Utility functions */
-int norm1(const bool*, int size);
+int norm1(const bool*, int variables);
 int binary2decimal(const bool *values, int size);
 int* binary2decimals(const bool *values, int size, int* return_size); //same as above but it may return more decimal if values contains dashes
 bvector decimal2binary(int value, int size);
@@ -48,6 +48,7 @@ bool_f* f_create_random(int variables);
 /* Creates a product from its binary representation */
 bool_product* product_create(bool product[], int size);
 bool product_of(bool_product*, const bool*); //returns the value of the product with the given values
+bool product_covers(bool_product*, const bool*);
 
 
 #endif //SOP_SYNTHESIS_BOOL_UTILS_H

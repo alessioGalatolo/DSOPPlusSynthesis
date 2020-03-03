@@ -12,36 +12,30 @@ int main() {
     fplus_print(function);
     sopp_t* sopp = sopp_create();
     implicantp_t* implicants = prime_implicants(function);
-    printf("Final implicants: \n");
-    for(int i = 0; i < implicants -> size; i++){
-        for(int j = 0; j < function -> variables; j++){
-            printf("%d\t", implicants -> implicants[i][j]);
+    implicants_print(implicants, function -> variables);
+
+    essentialsp_t* e = essential_implicants(function, implicants);
+    essentials_print(e, function -> variables);
+
+    fplus_t* f_copy = fplus_copy(function);
+
+    for(int i = 0; i < e -> impl_size; i++){
+        int max = 0;
+        for(int j = 0; j < e -> points_size; j++){
+            if(product_covers((e -> implicants + i) -> product, e -> points[j])) {
+                int cur_value = fplus_value_of(function, e->points[j]);
+                if (cur_value > max)
+                    max = cur_value;
+            }
+            (e -> implicants + i) -> coeff = max; //TODO: check if may be a problem
+            sopp_add(sopp, e -> implicants + i);
         }
-        printf("\n");
     }
-    printf("\n");
-//
-//    essentialsp_t* e = essential_implicants(function, implicants);
-//
-//    printf("Essential implicants: \n");
-//    for(int i = 0; i < e -> impl_size; i++){
-//        for(int j = 0; j < function -> variables; j++){
-//            printf("%d\t", (e -> implicants + i) -> product -> product[j]);
-//        }
-//        printf("\n");
-//    }
-//    printf("\n");
-//
-//    printf("Essential points: \n");
-//    for(int i = 0; i < e -> points_size; i++){
-//        for(int j = 0; j < function -> variables; j++){
-//            printf("%d\t", e -> points[i][j]);
-//        }
-//        printf("\n");
-//    }
-//    printf("\n");
-//
-//    essentials_destroy(e);
+
+
+
+    //clean up
+    essentials_destroy(e);
     implicants_destroy(implicants);
     fplus_destroy(function);
     sopp_destroy(sopp);
