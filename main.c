@@ -18,20 +18,30 @@ int main() {
     essentials_print(e, function -> variables);
 
     fplus_t* f_copy = fplus_copy(function);
+    implicantp_t* i_copy = implicants_copy(implicants);
 
-    for(int i = 0; i < e -> impl_size; i++){
+    cycle: for(int i = 0; i < e -> impl_size; i++){
         int max = 0;
         for(int j = 0; j < e -> points_size; j++){
-            if(product_covers((e -> implicants + i) -> product, e -> points[j])) {
+            if(product_of((e -> implicants + i) -> product, e -> points[j])) {
                 int cur_value = fplus_value_of(function, e->points[j]);
                 if (cur_value > max)
                     max = cur_value;
             }
-            (e -> implicants + i) -> coeff = max; //TODO: check if may be a problem
-            sopp_add(sopp, e -> implicants + i);
         }
+        (e -> implicants + i) -> coeff = max; //TODO: check if may be a problem
+        sopp_add(sopp, e -> implicants + i);
+        int size;
+        int* indexes = binary2decimals((e -> implicants + i) -> product -> product, f_copy -> variables, &size);
+        for(int j = 0; j < size; j++)
+            fplus_add2value(f_copy, indexes[j], -max);
     }
 
+    implicantp_t* new_implicants = prime_implicants(f_copy);
+    if(new_implicants -> size > 0) {
+        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
+        goto cycle;
+    }
 
 
     //clean up

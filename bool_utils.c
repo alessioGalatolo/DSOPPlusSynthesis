@@ -70,10 +70,10 @@ bool product_of(bool_product* product, const bool input[]){
     while(result && i < product -> variables){
         switch(product -> product[i]){
             case 0:
-                result = !input[i];
+                result = result && !input[i];
                 break;
             case 1:
-                result = input[i];
+                result = result && input[i];
                 break;
         }
         i++;
@@ -121,7 +121,7 @@ int binary2decimal(const bool *values, int size) {
 int* binary2decimals(const bool *values, int size, int* return_size){
     *return_size = 1;
     for(int i = 0; i < size; i++){
-        if(values[i] == dash)
+        if(values[i] == dash || values[i] == not_present)
             *return_size *= 2;
     }
 
@@ -135,7 +135,7 @@ int* binary2decimals(const bool *values, int size, int* return_size){
     for(int i = 0; i < size; i++){
 
         //if dash then half the numbers have to be updated
-        if(values[size - i - 1] == dash){
+        if(values[size - i - 1] == dash || values[size - i - 1] == not_present){
             for(int j = 0; j < *return_size; j += 2 * dash_found){
                 for(int k = 0; k < dash_found; k++){
                     numbers[j + k] += (int) exp2(i);

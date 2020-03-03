@@ -7,7 +7,7 @@
 #include <math.h>
 
 
-#define PROBABILITY_NON_ZERO_VALUE 100
+#define PROBABILITY_NON_ZERO_VALUE 40
 
 //internal functions
 void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
@@ -116,16 +116,29 @@ void fplus_destroy(fplus_t* f){
     free(f);
 }
 
+/**
+ * Creates a copy of the given boolean plus function
+ * @param f function to copy
+ * @return A new copy of the function
+ */
 fplus_t* fplus_copy(fplus_t* f){
     fplus_t* f_copy;
     MALLOC(f_copy, sizeof(fplus_t), ;);
     f_copy -> variables = f -> variables;
     f_copy -> size = f -> size;
-    MALLOC(f_copy -> values, sizeof(int) * exp2(f -> variables), free(f_copy););
+    int values_size = (int) exp2(f -> variables);
+    MALLOC(f_copy -> values, sizeof(int) * values_size, free(f_copy););
     MALLOC(f_copy -> non_zeros, sizeof(bool*) * f -> size, free(f_copy -> values); free(f_copy););
+    memcpy(f_copy -> values, f -> values, sizeof(int) * values_size);
+    memcpy(f_copy -> non_zeros, f -> non_zeros, sizeof(bool*) * f -> size);
+    return f_copy;
+}
 
-    assert(false);
-    //memcpy
+void fplus_add2value(fplus_t* f, int index, int increment){
+    if(f -> values[index] <= -increment)
+        f -> values[index] = 0;
+    else
+        f -> values[index] += increment;
 }
 
 /**
@@ -178,7 +191,7 @@ int sopp_value_equals(sopp_t* sop, bool input[], int value){
  * time: exponential in number of variables
  * @return true it is valid
  */
-bool sop_plus_of(sopp_t* sopp, fplus_t* fun){
+bool sopp_from_of(sopp_t* sopp, fplus_t* fun){
     bool value[sopp -> size];
     memset(value, 0, sizeof(bool) * sopp -> size);
     bool result = 1;
@@ -404,6 +417,7 @@ implicantp_t* prime_implicants(fplus_t* f){
     MALLOC(implicants, sizeof(implicantp_t), free(result)); //TODO: should clean more stuff
     implicants -> implicants = result;
     implicants -> size = result_size;
+    implicants -> variables = f -> variables;
 
     return implicants;
 }
@@ -593,4 +607,29 @@ void essentials_print(essentialsp_t* e, int variables){
 void productp_destroy(productp_t *p) {
     free(p -> product -> product);
     free(p -> product);
+}
+
+implicantp_t* implicants_copy(implicantp_t* impl){
+    implicantp_t* i_copy;
+    MALLOC(i_copy, sizeof(implicantp_t),;);
+    i_copy -> size = impl -> size;
+    i_copy -> variables = impl -> variables;
+    MALLOC(i_copy -> implicants, sizeof(bool*) * impl -> size, free(i_copy));
+    memcpy(i_copy -> implicants, impl -> implicants, sizeof(bool*) * impl -> size);
+    return i_copy;
+}
+
+void remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
+    int removed = 0;
+    for(int i = 0; i < source -> size - removed; i++){
+        for(int j = 0; j < to_remove -> size; j++){
+            //remove all prime implicants covering non-zero points all covered by another implicants in to_remove
+//            if(bvector_equals(source -> implicants[i], to_remove -> implicants[j], source -> variables)){
+//                removed++;
+//                free(source -> implicants[i]);
+//                source -> implicants[i] = source -> implicants[source -> size - removed];
+//            }
+        }
+    }
+    source -> size -= removed;
 }
