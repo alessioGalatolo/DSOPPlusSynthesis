@@ -149,7 +149,6 @@ sopp_t* sopp_create(){
     sopp_t* sopp;
     MALLOC(sopp, sizeof(sopp_t), ;);
     sopp -> products = list_create();
-    sopp -> size = 0;
     return sopp;
 }
 
@@ -165,8 +164,8 @@ void sopp_destroy(sopp_t* sopp){
  * @return true if the operation was successful
  */
 int sopp_add(sopp_t* sopp, productp_t* sop1){
+    //TODO: should check if sop1 is already in the list
     list_add(sopp -> products, sop1, sizeof(sop1)); //TODO: error?
-    (sopp -> size)++;
     return sopp -> products == NULL ? 0: 1;
 }
 
@@ -192,11 +191,24 @@ int sopp_value_equals(sopp_t* sop, bool input[], int value){
  * @return true it is valid
  */
 bool sopp_from_of(sopp_t* sopp, fplus_t* fun){
-    bool value[sopp -> size];
-    memset(value, 0, sizeof(bool) * sopp -> size);
+    int length = list_length(sopp -> products);
+    bool value[length];
+    memset(value, 0, sizeof(bool) * length);
     bool result = 1;
-    binaries(value, sopp -> size, sopp, fun, &result);
+    binaries(value, length, sopp, fun, &result);
     return result;
+}
+
+void sopp_print(sopp_t* s){
+    size_t size;
+    productp_t* array = list_as_array(s -> products, &size);
+    for(size_t i = 0; i < size; i++){
+        printf("Product has coeff: %d and is: ", array[i] . coeff);
+        for(int j = 0; j < array[0] . product -> variables; j++){
+            printf("%d ", array[i] . product -> product[j]);
+        }
+        printf("\n");
+    }
 }
 
 /*
@@ -305,8 +317,6 @@ implicantp_t* prime_implicants(fplus_t* f){
 //            assert(norm1(non_zeros[i], f -> variables) == norms[i]);
             norms[i] = norm1(non_zeros[i], f -> variables);
         //TODO: fix norm calculation in quick sort
-
-
 
         bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
         memset(taken, 0, sizeof(bool) * non_zeros_size);
@@ -462,10 +472,10 @@ void implicants_destroy(implicantp_t* impl){
     free(impl);
 }
 
-void implicants_print(implicantp_t* impl, int variables){
+void implicants_print(implicantp_t* impl){
     printf("Final implicants: \n");
     for(int i = 0; i < impl -> size; i++){
-        for(int j = 0; j < variables; j++){
+        for(int j = 0; j < impl -> variables; j++){
             printf("%d\t", impl -> implicants[i][j]);
         }
         printf("\n");
@@ -619,17 +629,37 @@ implicantp_t* implicants_copy(implicantp_t* impl){
     return i_copy;
 }
 
-void remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
+/**
+ * Removes the implicants of source covering an implicant of to_remove
+ * @return true if at least an implicant in source has been removed
+ */
+bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove){
     int removed = 0;
-    for(int i = 0; i < source -> size - removed; i++){
-        for(int j = 0; j < to_remove -> size; j++){
-            //remove all prime implicants covering non-zero points all covered by another implicants in to_remove
-//            if(bvector_equals(source -> implicants[i], to_remove -> implicants[j], source -> variables)){
-//                removed++;
-//                free(source -> implicants[i]);
-//                source -> implicants[i] = source -> implicants[source -> size - removed];
-//            }
+    //remove all prime implicants covering non-zero points all covered by another implicants in to_remove
+    for(int i = 0; i < to_remove -> size; i++){
+        for(int j = 0; j < source -> size - removed; j++){
+            if(implicant_of(to_remove -> implicants[i], source -> implicants[j], source -> variables)){
+//                free(source -> implicants[j]);
+                removed++;
+                source -> implicants[j] = source -> implicants[source -> size - removed];
+            }
         }
     }
     source -> size -= removed;
+    return removed > 0;
+}
+
+/**
+ * Checks if the points covered by b2 are also covered by b1
+ * @return true if b1 "covers" b2
+ */
+bool implicant_of(bvector b1, bvector b2, int variables){
+    for(int i = 0; i < variables; i++){
+        if(b1[i] != b2[i]) {
+            if(b2[i] == dash || b2[i] == not_present)
+                continue;
+            return false;
+        }
+    }
+    return true;
 }

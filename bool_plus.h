@@ -18,7 +18,6 @@ typedef struct{
 
 typedef struct{
     list_t* products; //list of products of productp_t
-    int size;
 }sopp_t; //sop plus form
 
 typedef struct {
@@ -55,14 +54,18 @@ int sopp_add(sopp_t*, productp_t*);
 int sopp_value_of(sopp_t*, bool*);
 bool is_sopp_of(sopp_t*, fplus_t*);
 bool sopp_form_of(sopp_t*, fplus_t*);
+void sopp_print(sopp_t*);
+
 implicantp_t* prime_implicants(fplus_t*); //returns the prime implicants of the given bool plus function
 void implicants_destroy(implicantp_t*); //frees the heap taken by the above function
-void implicants_print(implicantp_t*, int);
+void implicants_print(implicantp_t*);
+implicantp_t* implicants_copy(implicantp_t*); //returns a copy of the given implicants
+bool implicant_of(bvector, bvector, int variables);
+
 essentialsp_t* essential_implicants(fplus_t*, implicantp_t*);
 void essentials_destroy(essentialsp_t*); //frees the heap taken by the above function
 void essentials_print(essentialsp_t*, int); //prints the implicants and the points
-void remove_implicant_duplicates(implicantp_t*, implicantp_t*, fplus_t*);
-implicantp_t* implicants_copy(implicantp_t*); //returns a copy of the given implicants
+bool remove_implicant_duplicates(implicantp_t*, implicantp_t*);
 
 
 

@@ -12,7 +12,7 @@ int main() {
     fplus_print(function);
     sopp_t* sopp = sopp_create();
     implicantp_t* implicants = prime_implicants(function);
-    implicants_print(implicants, function -> variables);
+    implicants_print(implicants);
 
     essentialsp_t* e = essential_implicants(function, implicants);
     essentials_print(e, function -> variables);
@@ -29,8 +29,11 @@ int main() {
                     max = cur_value;
             }
         }
+        printf("Found max: %d\n", max);
         (e -> implicants + i) -> coeff = max; //TODO: check if may be a problem
         sopp_add(sopp, e -> implicants + i);
+        printf("idk: %d", e -> implicants[i] . coeff);
+        sopp_print(sopp);
         int size;
         int* indexes = binary2decimals((e -> implicants + i) -> product -> product, f_copy -> variables, &size);
         for(int j = 0; j < size; j++)
@@ -38,15 +41,16 @@ int main() {
     }
 
     implicantp_t* new_implicants = prime_implicants(f_copy);
-    if(new_implicants -> size > 0) {
-        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
+    if(remove_implicant_duplicates(i_copy, new_implicants))
         goto cycle;
-    }
 
+    implicants_print(i_copy);
+
+    sopp_print(sopp);
 
     //clean up
-    essentials_destroy(e);
-    implicants_destroy(implicants);
+//    essentials_destroy(e);
+//    implicants_destroy(implicants);
     fplus_destroy(function);
     sopp_destroy(sopp);
     fflush(stdout);

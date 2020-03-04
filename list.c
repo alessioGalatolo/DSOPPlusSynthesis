@@ -7,6 +7,10 @@
 #define LIST_INIT_SIZE 100
 #define LIST_INCREMENT 2
 
+/**
+ * Creates a list object
+ * @return The pointer to the newly created list
+ */
 list_t* list_create(){
     list_t* list;
     MALLOC(list, sizeof(list_t),;);
@@ -17,6 +21,13 @@ list_t* list_create(){
     return list;
 }
 
+/**
+ * Adds the value to the list, keeps only the pointer
+ * @param l The list
+ * @param value The value to add to the list
+ * @param size The size of values
+ * @return the outcome of the operation
+ */
 int list_add(list_t *l, void* value, size_t size){
     if(!l)
         return 0;
@@ -35,6 +46,10 @@ int list_add(list_t *l, void* value, size_t size){
     return 1;
 }
 
+/**
+ * @param size Will contain the size of the object
+ * @return The index-sm element of the list
+ */
 void* list_get(list_t* l, size_t* size, int index){
     if(!l)
         return 0;
@@ -43,12 +58,21 @@ void* list_get(list_t* l, size_t* size, int index){
     return l -> list[index];
 }
 
+/**
+ * @return The length of the list
+ */
 int list_length(list_t* list){
     if(!list)
         return 0;
     return list -> current_length;
 }
 
+/**
+ * Applies the given function to each member of the list
+ * @param f A function that gets the object and its size
+ *      and returns true if the operation is completed successfully
+ * @return true if all the operation were completed successfully
+ */
 int list_for_each(list_t* list, int (*f) (void*, size_t*)){
     for(size_t i = 0; i < list -> current_length; i++){
         if(!f(list -> list[i], list -> sizes + i))
@@ -57,11 +81,18 @@ int list_for_each(list_t* list, int (*f) (void*, size_t*)){
     return 1;
 }
 
+/**
+ * NOT YET IMPLEMENTED
+ */
 int list_remove(list_t* l, void* obj){
 //    for(int i = 0; i < )
     return 0;
 }
 
+/**
+ * @param size Will contain the size of the array
+ * @return The list as array
+ */
 void* list_as_array(list_t* list, size_t* size){
     if(size)
         *size = list -> current_length;
@@ -69,7 +100,7 @@ void* list_as_array(list_t* list, size_t* size){
 }
 
 /**
- * Frees the list from the heap, also frees all the elements pointed
+ * Frees the list from the heap
  */
 void list_destroy(list_t* list) {
     if (list != NULL) {
