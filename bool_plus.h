@@ -47,6 +47,7 @@ void fplus_print(fplus_t*); //prints the function as Karnaugh map <=> n_variable
 void fplus_destroy(fplus_t*); //frees the heap taken by the function
 void fplus_add2value(fplus_t*, int index, int increment);
 fplus_t* fplus_copy(fplus_t*);
+void fplus_copy_destroy(fplus_t*);
 
 sopp_t* sopp_create();
 void sopp_destroy(sopp_t*);

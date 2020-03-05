@@ -7,7 +7,7 @@
 #include <math.h>
 
 
-#define PROBABILITY_NON_ZERO_VALUE 40
+#define PROBABILITY_NON_ZERO_VALUE 50
 
 //internal functions
 void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
@@ -134,6 +134,12 @@ fplus_t* fplus_copy(fplus_t* f){
     return f_copy;
 }
 
+void fplus_copy_destroy(fplus_t* f){
+    free(f -> non_zeros);
+    free(f -> values);
+    free(f);
+}
+
 void fplus_add2value(fplus_t* f, int index, int increment){
     if(f -> values[index] <= -increment)
         f -> values[index] = 0;
@@ -166,7 +172,7 @@ void sopp_destroy(sopp_t* sopp){
 int sopp_add(sopp_t* sopp, productp_t* sop1){
     //TODO: should check if sop1 is already in the list
     list_add(sopp -> products, sop1, sizeof(sop1)); //TODO: error?
-    return sopp -> products == NULL ? 0: 1;
+    return sopp -> products != NULL;
 }
 
 /**
@@ -201,11 +207,11 @@ bool sopp_from_of(sopp_t* sopp, fplus_t* fun){
 
 void sopp_print(sopp_t* s){
     size_t size;
-    productp_t* array = list_as_array(s -> products, &size);
+    productp_t** array = list_as_array(s -> products, &size);
     for(size_t i = 0; i < size; i++){
-        printf("Product has coeff: %d and is: ", array[i] . coeff);
-        for(int j = 0; j < array[0] . product -> variables; j++){
-            printf("%d ", array[i] . product -> product[j]);
+        printf("Product has coeff: %d and is: ", (array[i]) -> coeff);
+        for(int j = 0; j < array[0] -> product -> variables; j++){
+            printf("%d ", array[i] -> product -> product[j]);
         }
         printf("\n");
     }
@@ -347,7 +353,8 @@ implicantp_t* prime_implicants(fplus_t* f){
             }
         }
 
-        if(list_length(impl_found) == 0){//end of cycle
+        //case last cycle
+        if(list_length(impl_found) == 0){
             if(!old_list_2free){
                 //only one cycle was made
                 MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
@@ -394,7 +401,7 @@ implicantp_t* prime_implicants(fplus_t* f){
             for(size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
                 if (bvector_equals(non_zeros[i], non_zeros[j], f -> variables)) {
                     duplicates_found++;
-//                    free(non_zeros[j]); //THIS WILL LEAK MEMORY
+                    free(non_zeros[j]); //THIS WILL LEAK MEMORY
                     non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
                     non_zeros[non_zeros_size - duplicates_found] = NULL;
                     j--; //recheck current element
@@ -491,9 +498,9 @@ void implicants_print(implicantp_t* impl){
 essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
     int f_size = (int) exp2(f -> variables); //exp size unnecessary as only non_zero points are needed
     list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
-    bvector essential_implicants[implicants -> size]; //stores the essential points
+    bvector essential_implicants[f_size]; //stores the essential prime implicants
     int e_index = 0; //index of above and below array;
-    bvector* essential_points;
+    bvector* essential_points; //stores the essential points
     MALLOC(essential_points, sizeof(bvector) * f_size, ;);
 
     //init the array of points
@@ -524,20 +531,21 @@ essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
         }
     }
 
-    if(e_index == 0)
+    if(e_index == 0) {
         free(essential_points);
-    else
+        essential_points = NULL;
+    } else
         REALLOC(essential_points, sizeof(bvector) * e_index, ;);
 
     essentialsp_t* e;
-    MALLOC(e, sizeof(essentialsp_t), ;);
+    MALLOC(e, sizeof(essentialsp_t), free(essential_points););
     e -> implicants = implicants2sop(essential_implicants, e_index, f -> variables, &e -> impl_size);
     e -> points = essential_points;
     e -> points_size = e_index;
 
-//    for(int i = 0; i < f_size; i++) {
-//        list_destroy(points[i]);
-//    }
+    for(int i = 0; i < f_size; i++) {
+        list_destroy(points[i]);
+    }
     return e;
 }
 
@@ -554,14 +562,15 @@ productp_t* implicants2sop(bvector* implicants, int size, int variables, int* fi
 
     //tag duplicates
     for(int i = 0; i < size - 1; i++){
-        for(int j = i + 1; j < size; j++) {
-            if (bvector_equals(implicants[i], implicants[j], variables)) {
-                if (!duplicates[j]) {
-                    duplicates[j] = true;
-                    duplicates_found++;
+        if(!duplicates[i])
+            for(int j = i + 1; j < size; j++) {
+                if (bvector_equals(implicants[i], implicants[j], variables)) {
+                    if (!duplicates[j]) {
+                        duplicates[j] = true;
+                        duplicates_found++;
+                    }
                 }
             }
-        }
     }
 
     productp_t* product_array;
@@ -572,12 +581,16 @@ productp_t* implicants2sop(bvector* implicants, int size, int variables, int* fi
     for(int i = 0; i < size; i++){
         if(!duplicates[i]) {
             for (int j = 0; j < variables; j++) {
-                if (implicants[i][j] == dash)
+                if (implicants[i][j] == dash) //write in new variable
                     implicants[i][j] = not_present;
             }
             (product_array + array_index) -> product = product_create(implicants[i], variables);
             (product_array + array_index) -> coeff = 1;
             array_index++;
+            for (int j = 0; j < variables; j++) {
+                if (implicants[i][j] == not_present) //write in new variable
+                    implicants[i][j] = dash;
+            }
         }
     }
 
