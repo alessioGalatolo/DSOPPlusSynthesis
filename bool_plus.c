@@ -1,20 +1,22 @@
-#include "bool_plus.h"
-#include "utils.h"
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-
+#include "bool_plus.h"
+#include "utils.h"
 
 #define PROBABILITY_NON_ZERO_VALUE 50
+
+//parameter for sopp representation in semi-hashtable
+#define INIT_SIZE 100
+#define GOOD_LOAD 0.5
 
 //internal functions
 void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
 bvector joinable_vectors(const bool*, const bool*, int size);
 productp_t* implicants2sop(bvector*, int size, int variables, int* final_size);
-
-void productp_destroy(productp_t *p);
+long product_hashcode(productp_t *p);
 
 /**
  * Creates a boolean plus function with the given parameters
@@ -147,32 +149,73 @@ void fplus_add2value(fplus_t* f, int index, int increment){
         f -> values[index] += increment;
 }
 
-/**
- * Creates and initializes a sop plus form
- * @return The sopp_t form
- */
 sopp_t* sopp_create(){
+    return sopp_create_wsize(INIT_SIZE);
+}
+
+sopp_t* sopp_create_wsize(int expected_size){
     sopp_t* sopp;
     MALLOC(sopp, sizeof(sopp_t), ;);
-    sopp -> products = list_create();
+    int good_size = (int) (expected_size / GOOD_LOAD);
+    while((sopp -> table = malloc(sizeof(list_t*) * good_size)) == NULL)
+        good_size /= 2;
+    memset(sopp -> table, 0, sizeof(list_t*) * good_size);
+    sopp -> table_size = good_size;
+    sopp -> current_length = 0;
+    NULL_CHECK(sopp -> array = list_create());
     return sopp;
 }
 
 void sopp_destroy(sopp_t* sopp){
-    list_destroy(sopp -> products);
+    list_destroy(sopp -> array);
+    for(int i = 0; i < sopp -> table_size; i++){
+        if(sopp -> table[i] != NULL)
+            list_destroy(sopp -> table[i]);
+    }
+    free(sopp -> table);
     free(sopp);
 }
 
-/**
- * Adds a product to the sop plus form
- * @param sopp The sop plus form
- * @param sop1 The product to add
- * @return true if the operation was successful
- */
-int sopp_add(sopp_t* sopp, productp_t* sop1){
-    //TODO: should check if sop1 is already in the list
-    list_add(sopp -> products, sop1, sizeof(sop1)); //TODO: error?
-    return sopp -> products != NULL;
+
+int sopp_add(sopp_t* sopp, productp_t* p){
+    unsigned long hashcode = product_hashcode(p) % sopp -> table_size;
+    if((double) (sopp -> current_length + 1) / sopp -> table_size > GOOD_LOAD)
+        fprintf(stdout, "Warning: sopptable is exceeding good load\n");
+
+    //if list is empty
+    if(sopp -> table[hashcode] == NULL){
+        NULL_CHECK(sopp -> table[hashcode] = list_create());
+        list_add(sopp -> table[hashcode], p, sizeof(productp_t*));
+        list_add(sopp -> array, p, sizeof(productp_t*));
+        return true;
+    }
+
+    //list not empty, check existence
+    size_t size;
+    productp_t** array = list_as_array(sopp -> table[hashcode], &size);
+    size_t i = 0;
+    while(i < size && !bvector_equals(array[i] -> product -> product, p -> product -> product, p -> product -> variables))
+        i++;
+    if(i < size) {
+        //element was found, update value
+        array[i]->coeff = p->coeff;
+        return true;
+    }
+    //element was not found
+    list_add(sopp -> table[hashcode], p, sizeof(productp_t*));
+    list_add(sopp -> array, p, sizeof(productp_t*));
+    return true;
+}
+
+//semi stolen from java
+long product_hashcode(productp_t *p) {
+    long hashcode = 0;
+    int n = p -> product -> variables;
+    for(int i = 0; i < n; i++){
+        hashcode += (long) pow(p -> product -> product[i] * 31, n - i);
+    }
+
+    return hashcode;
 }
 
 /**
@@ -182,7 +225,7 @@ int sopp_add(sopp_t* sopp, productp_t* sop1){
 int sopp_value_equals(sopp_t* sop, bool input[], int value){
     int sopp_value = 0;
     size_t size = 0;
-    void** list = list_as_array(sop -> products, &size); //sop -> products;
+    productp_t** list = list_as_array(sop -> array, &size);
     for(size_t i = 0; i < size; i++){
         productp_t* current_p = list[i];
         sopp_value += current_p -> coeff * product_of(current_p -> product, input);
@@ -197,7 +240,7 @@ int sopp_value_equals(sopp_t* sop, bool input[], int value){
  * @return true it is valid
  */
 bool sopp_from_of(sopp_t* sopp, fplus_t* fun){
-    int length = list_length(sopp -> products);
+    int length = sopp -> current_length;
     bool value[length];
     memset(value, 0, sizeof(bool) * length);
     bool result = 1;
@@ -207,7 +250,7 @@ bool sopp_from_of(sopp_t* sopp, fplus_t* fun){
 
 void sopp_print(sopp_t* s){
     size_t size;
-    productp_t** array = list_as_array(s -> products, &size);
+    productp_t** array = list_as_array(s -> array, &size);
     for(size_t i = 0; i < size; i++){
         printf("Product has coeff: %d and is: ", (array[i]) -> coeff);
         for(int j = 0; j < array[0] -> product -> variables; j++){
@@ -496,7 +539,7 @@ void implicants_print(implicantp_t* impl){
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
 essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
-    int f_size = (int) exp2(f -> variables); //exp size unnecessary as only non_zero points are needed
+    long f_size = exp2l(f -> variables); //exp size unnecessary as only non_zero points are needed
     list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
     bvector essential_implicants[f_size]; //stores the essential prime implicants
     int e_index = 0; //index of above and below array;

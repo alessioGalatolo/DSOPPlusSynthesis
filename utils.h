@@ -7,14 +7,14 @@
 
 #define NULL_CHECK(x)\
     if((x) == NULL){\
-        fprintf(stderr, "Null pointer");\
+        fprintf(stderr, "Null pointer\n");\
         return 0;\
     }
 
 //does a malloc and checks return values, if malloc failed prints error does 'clean' command and returns 0
 #define MALLOC(x, s, clean)\
     if((x = malloc(s)) == NULL){\
-        fprintf(stderr, "Malloc returned a null pointer");\
+        fprintf(stderr, "Malloc returned a null pointer\n");\
         clean;\
         return 0;\
     }
@@ -23,7 +23,7 @@
     {\
         void* tmp = realloc(x, s);\
         if(tmp == NULL){\
-            fprintf(stderr, "Realloc unable to allocate %ld memory. Returned a null pointer", s);\
+            fprintf(stderr, "Realloc unable to allocate %ld memory. Returned a null pointer\n", s);\
             clean;\
         }\
         x = tmp;\

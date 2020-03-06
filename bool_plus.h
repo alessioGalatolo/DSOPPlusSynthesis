@@ -16,8 +16,13 @@ typedef struct{
     int coeff;
 }productp_t;
 
+//kinda hashtable used to store sopp
+//more like a set
 typedef struct{
-    list_t* products; //list of products of productp_t
+    list_t** table; //the hashtable
+    size_t table_size; //number of buckets
+    size_t current_length; //number of actual elements
+    list_t* array; //list with all the elements
 }sopp_t; //sop plus form
 
 typedef struct {
@@ -40,6 +45,8 @@ typedef struct {
     int points_size;
 }essentialsp_t;
 
+void productp_destroy(productp_t *p);
+
 fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
 fplus_t* fplus_create_random(int variables, int max_value); //creates a boolean plus function with random outputs
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
@@ -50,6 +57,7 @@ fplus_t* fplus_copy(fplus_t*);
 void fplus_copy_destroy(fplus_t*);
 
 sopp_t* sopp_create();
+sopp_t* sopp_create_wsize(int expected_size);
 void sopp_destroy(sopp_t*);
 int sopp_add(sopp_t*, productp_t*);
 int sopp_value_of(sopp_t*, bool*);
