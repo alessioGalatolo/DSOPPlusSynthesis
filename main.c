@@ -13,41 +13,40 @@ int main() {
     NULL_CHECK(function);
     if(VARIABLES == 4)
         fplus_print(function);
-    sopp_t* sopp = sopp_create();
+    sopp_t* sopp = sopp_create_wsize(VARIABLES * 4);
     implicantp_t* implicants = prime_implicants(function);
     implicants_print(implicants);
-
-    essentialsp_t* e = essential_implicants(function, implicants);
-    essentials_print(e, function -> variables);
 
     fplus_t* f_copy = fplus_copy(function);
     implicantp_t* i_copy = implicants_copy(implicants);
 
-    cycle:
-        for(int i = 0; i < e -> impl_size; i++){
+    bool go_on = true;
+    essentialsp_t* e;
+    do {
+        e = essential_implicants(f_copy, i_copy);
+        for (int i = 0; i < e->impl_size; i++) {
             int max = 0;
-            for(int j = 0; j < e -> points_size; j++){
-                if(product_of((e -> implicants + i) -> product, e -> points[j])) {
+            for (int j = 0; j < e -> points_size; j++) {
+                if (product_of((e -> implicants + i)->product, e->points[j])) {
                     int cur_value = fplus_value_of(function, e->points[j]);
                     if (cur_value > max)
                         max = cur_value;
                 }
             }
-            (e -> implicants + i) -> coeff = max; //TODO: check if may be a problem (should do new var)
-            sopp_add(sopp, e -> implicants + i);
+            (e -> implicants + i)->coeff = max; //TODO: check if may be a problem (should do new var)
+            sopp_add(sopp, e->implicants + i);
             int size;
-            int* indexes = binary2decimals((e -> implicants + i) -> product -> product, f_copy -> variables, &size);
-            for(int j = 0; j < size; j++)
+            int *indexes = binary2decimals((e -> implicants + i)->product->product, f_copy->variables, &size);
+            for (int j = 0; j < size; j++)
                 fplus_add2value(f_copy, indexes[j], -max);
             free(indexes);
         }
 
-        implicantp_t* new_implicants = prime_implicants(f_copy);
-        if(remove_implicant_duplicates(i_copy, new_implicants)) {
-            implicants_destroy(new_implicants);
-            goto cycle;
-        }
-    implicants_destroy(new_implicants);
+        implicantp_t *new_implicants = prime_implicants(f_copy);
+        go_on = remove_implicant_duplicates(i_copy, new_implicants);
+        implicants_destroy(new_implicants);
+    }while(go_on);
+
 
 
     sopp_print(sopp);
