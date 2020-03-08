@@ -118,6 +118,7 @@ int binary2decimal(const bool *values, int size) {
     return number;
 }
 
+//array will be in descending order
 int* binary2decimals(const bool *values, int size, int* return_size){
     *return_size = 1;
     for(int i = 0; i < size; i++){

@@ -13,7 +13,7 @@
 #define dash 4 //used to join two vectors
 
 typedef unsigned char bool;
-typedef bool* bvector;
+typedef bool* bvector; //its value may assume the defined above (false, true, not_present, dash)
 
 typedef struct{
     bvector values;
@@ -21,7 +21,7 @@ typedef struct{
 }bool_f;
 
 typedef struct{
-    bvector product; //0 -> not value, 1 -> value, 2 -> not present
+    bvector product;
     int variables;
 }bool_product;
 
@@ -31,18 +31,17 @@ typedef struct{
 }sop_t;
 
 /* Utility functions */
-int norm1(const bool*, int variables);
-int binary2decimal(const bool *values, int size);
+int norm1(const bool*, int variables); //returns the norm 1 of the vector
+int binary2decimal(const bool *values, int size); //returns the decimal of the given binary number
 int* binary2decimals(const bool *values, int size, int* return_size); //same as above but it may return more decimal if values contains dashes
-bvector decimal2binary(int value, int size);
-bool bvector_equals(bvector, bvector, int size);
+bvector decimal2binary(int value, int size); //returns the binary representation of the given value
+bool bvector_equals(bvector, bvector, int size); //returns true if the 2 vector are the same one
 
 
 /* Other functions */
-//creates a boolean function given its output values
-bool_f* f_create(bool[], int variables);
-//creates a random boolean function
-bool_f* f_create_random(int variables);
+bool_f* f_create(bool[], int variables); //creates a boolean function given its output values
+bool_f* f_create_random(int variables); //creates a random boolean function
+
 
 
 /* Creates a product from its binary representation */

@@ -82,7 +82,7 @@ int list_for_each(list_t* list, int (*f) (void*, size_t*)){
 }
 
 /**
- * NOT YET IMPLEMENTED
+ * TODO: NOT YET IMPLEMENTED
  */
 int list_remove(list_t* l, void* obj){
 //    for(int i = 0; i < )

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "bool_utils.h"
 #include "bool_plus.h"
 #include "utils.h"
@@ -9,55 +10,22 @@
 #define MAX_VALUE 10
 
 int main() {
-    fplus_t* function = fplus_create_random(VARIABLES, MAX_VALUE);
-    NULL_CHECK(function);
+
+
+    fplus_t* function; //will store the function from bool vector to N
+
+    NULL_CHECK(function = fplus_create_random(VARIABLES, MAX_VALUE));
     if(VARIABLES == 4)
         fplus_print(function);
-    sopp_t* sopp = sopp_create_wsize(VARIABLES * 4);
-    implicantp_t* implicants = prime_implicants(function);
-    implicants_print(implicants);
 
-    fplus_t* f_copy = fplus_copy(function);
-    implicantp_t* i_copy = implicants_copy(implicants);
-
-    bool go_on = true;
-    essentialsp_t* e;
-    do {
-        e = essential_implicants(f_copy, i_copy);
-        for (int i = 0; i < e->impl_size; i++) {
-            int max = 0;
-            for (int j = 0; j < e -> points_size; j++) {
-                if (product_of((e -> implicants + i)->product, e->points[j])) {
-                    int cur_value = fplus_value_of(function, e->points[j]);
-                    if (cur_value > max)
-                        max = cur_value;
-                }
-            }
-            (e -> implicants + i)->coeff = max; //TODO: check if may be a problem (should do new var)
-            sopp_add(sopp, e->implicants + i);
-            int size;
-            int *indexes = binary2decimals((e -> implicants + i)->product->product, f_copy->variables, &size);
-            for (int j = 0; j < size; j++)
-                fplus_add2value(f_copy, indexes[j], -max);
-            free(indexes);
-        }
-
-        implicantp_t *new_implicants = prime_implicants(f_copy);
-        go_on = remove_implicant_duplicates(i_copy, new_implicants);
-        implicants_destroy(new_implicants);
-    }while(go_on);
-
-
+    sopp_t* sopp;
+    sopp = sopp_synthesis(function);
 
     sopp_print(sopp);
+    assert(sopp_form_of(sopp, function));
 
-    //clean up
-    essentials_destroy(e);
-    implicants_destroy(implicants);
-    implicants_destroy(i_copy);
-    fplus_destroy(function);
-    fplus_copy_destroy(f_copy);
     sopp_destroy(sopp);
+    fplus_destroy(function);
     fflush(stdout);
     return 0;
 }
