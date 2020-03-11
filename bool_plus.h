@@ -45,13 +45,15 @@ typedef struct {
 
 //stores a list of essential prime implicants and their essential points
 typedef struct {
-    productp_t* implicants;
+    productp_t** implicants;
     int impl_size;
     bool** points;
     int points_size;
 }essentialsp_t;
 
 void productp_destroy(productp_t *p); //frees the memory of a product plus
+productp_t* productp_create(bool*, int variables, int coeff);
+productp_t* productp_copy(productp_t*);
 
 /*
  * fplus related functions
@@ -59,6 +61,7 @@ void productp_destroy(productp_t *p); //frees the memory of a product plus
 fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
 fplus_t* fplus_create_random(int variables, int max_value); //creates a boolean plus function with random outputs
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
+int fplus_value_at(fplus_t*, int); //returns the output of the function at the given index
 void fplus_print(fplus_t*); //prints the function as Karnaugh map <=> n_variables = 4
 void fplus_destroy(fplus_t*); //frees the heap taken by the function
 void fplus_add2value(fplus_t*, int index, int increment); //add given value to the output of the function in the given input
@@ -85,6 +88,7 @@ implicantp_t* prime_implicants(fplus_t*); //returns the prime implicants of the 
 void implicants_destroy(implicantp_t*); //frees the heap taken by the above function
 void implicants_print(implicantp_t*); //prints the list of implicants
 implicantp_t* implicants_copy(implicantp_t*); //returns a copy of the given implicants
+void implicants_copy_destroy(implicantp_t* impl); //destroy implicants created with implicants_copy ???
 bool implicant_of(bvector, bvector, int variables); /*deprecated*/
 
 /*
