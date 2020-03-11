@@ -9,7 +9,7 @@
 #ifndef SOP_SYNTHESIS_BOOL_PLUS_H
 #define SOP_SYNTHESIS_BOOL_PLUS_H
 
-#define F_DONT_CARE_VALUE -1
+#define F_DONT_CARE_VALUE (-1)
 
 #include "list.h"
 
@@ -33,7 +33,7 @@ typedef struct {
     int* values; //stores each combination of the input
     int variables; //number of variables taken as input, 2^variables = size of above array
     bool** non_zeros; //array with the index of non-zero values written as binary numbers
-    int size; //size of above array
+    size_t size; //size of above array
 }fplus_t;
 
 //stores a list of implicants
@@ -73,7 +73,7 @@ void fplus_update_non_zeros(fplus_t*); //re-calculates the non_zeros array
  * sopp related functions
  */
 sopp_t* sopp_create(); //creates a sopp with default size
-sopp_t* sopp_create_wsize(int expected_size); //creates a sopp with a suggested size
+sopp_t* sopp_create_wsize(size_t expected_size); //creates a sopp with a suggested size
 void sopp_destroy(sopp_t*); //frees the memory of a sopp form
 bool sopp_add(sopp_t*, productp_t*); //adds a product to a sopp
 int sopp_value_of(sopp_t*, bool*); //returns the output of the sopp with the given variables values

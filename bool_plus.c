@@ -18,7 +18,6 @@ void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
 bvector joinable_vectors(const bool*, const bool*, int size);
 productp_t** implicants2sop(bvector*, int size, int variables, int* final_size);
 long product_hashcode(productp_t *p);
-
 bool r_cover_s(int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *f, int* non_zero_values);
 
 /**
@@ -48,7 +47,7 @@ fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
 fplus_t* fplus_create_random(int variables, int max_value){
     srandom(time(NULL));
     fplus_t* function;
-    long f_size = exp2l(variables);
+    long f_size = (long) exp2l(variables);
     int non_zeros_index = 0;
 
     MALLOC(function, sizeof(fplus_t), ;);
@@ -79,18 +78,18 @@ int fplus_value_of(fplus_t* f, bool input[]){
     return f -> values[binary2decimal(input, f -> variables)];
 }
 
+
 int fplus_value_at(fplus_t* f, int index){
     return f -> values[index];
 }
 
-
 /**
- * Prints function as Karnaugh map
- * Will work only for n = 4
+ * Prints function as Karnaugh map if n of variables = 4
+ * if n != 4 will print the function as a matrix
  */
 void fplus_print(fplus_t* f){
     if(f -> variables != 4){
-        long size = exp2l(f -> variables / 2);
+        long size = (long) exp2l(f -> variables / 2);
         printf("Function table: \n");
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
@@ -170,7 +169,6 @@ void fplus_copy_destroy(fplus_t* f){
 }
 
 
-//todo: should work ?
 /**
  * Adds increment to the output of the function when index is the input
  * If new output is below 0, the input becomes a don't care point
@@ -224,7 +222,7 @@ sopp_t* sopp_create(){
  * @param expected_size The expected number of products
  * @return A pointer to the sopp
  */
-sopp_t* sopp_create_wsize(int expected_size){
+sopp_t* sopp_create_wsize(size_t expected_size){
     sopp_t* sopp;
     MALLOC(sopp, sizeof(sopp_t), ;);
     int good_size = (int) (expected_size / GOOD_LOAD);
@@ -298,9 +296,9 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
     return true;
 }
 
-//semi stolen from java
 /**
  * Given a product plus, it returns an hashcode based on its values
+ * semi stolen from java, may be improved
  * @param p The product plus
  * @return The hash code
  */
@@ -311,7 +309,7 @@ long product_hashcode(productp_t *p) {
         hashcode += (long) pow(p -> product -> product[i] * 31, n - i);
     }
 
-    return hashcode * p -> coeff;
+    return hashcode;
 }
 
 /**
@@ -340,7 +338,6 @@ bool sopp_form_of(sopp_t* sopp, fplus_t* fun){
     bool value[length];
     memset(value, 0, sizeof(bool) * length);
     bool result = true;
-    int v =0;
     binaries(value, length, sopp, fun, &result);
     return result;
 }
@@ -394,11 +391,10 @@ void binaries(bool value[], int i, sopp_t* sop, fplus_t* fun, bool* result) {
 sopp_t* sopp_synthesis(fplus_t* f){
     sopp_t* sopp; //will store the minimal sopp form
     implicantp_t* implicants; //will store prime implicants
-    bool go_on = true;
+    bool go_on;
 
-    NULL_CHECK(sopp = sopp_create_wsize(f -> variables * f -> variables));
+    NULL_CHECK(sopp = sopp_create_wsize(f -> size / f -> variables));
     NULL_CHECK(implicants = prime_implicants(f));
-    implicants_print(implicants);
 
     fplus_t* f_copy = fplus_copy(f);
     implicantp_t* i_copy = implicants_copy(implicants);
@@ -417,7 +413,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
                         max = cur_value;
                 }
             }
-            e -> implicants[i] -> coeff = max; //TODO: check if may be a problem (should do new var)
+            e -> implicants[i] -> coeff = max; //TODO: (should create new var)
             sopp_add(sopp, e -> implicants[i]);
         }
 
@@ -438,8 +434,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
         implicantp_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
         implicants_copy_destroy(new_implicants);
-        if(i_copy -> size == 0)
-            printf("exiting cause no implicants left\n");
 
         essentials_destroy(e); //memory leak
     }while(go_on);
@@ -480,15 +474,14 @@ sopp_t* sopp_synthesis(fplus_t* f){
             fplus_sub2value(f_copy, indexes[j], min);
         free(indexes);
 
-//        fplus_print(f_copy);
         implicantp_t *new_implicants = prime_implicants(f_copy);
         remove_implicant_duplicates(i_copy, new_implicants, f_copy);
         implicants_copy_destroy(new_implicants);
         count++;
     }
     printf("Did second cycle %d times\n", count + 1);
-//
-//    //clean up
+
+    //clean up
     implicants_destroy(implicants);
     implicants_destroy(i_copy);
     fplus_copy_destroy(f_copy);
@@ -502,7 +495,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
 int partition (bvector* arr, int low, int high, int variables, int* norms){
     // pivot (Element to be placed at right position)
     bvector pivot = arr[high];
-    int norm_pivot = norm1(pivot, variables);
+    int norm_pivot = norm1(pivot, variables); //get norm1 of vector
 
     int i = (low - 1);  // Index of smaller element
 
@@ -517,7 +510,8 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
             arr[j] = tmp;
             if(norms)
                 norms[i] = norm_other;
-        }
+        } else if(norms)
+            norms[j] = norm_other;
     }
 
     bvector tmp = arr[i + 1];
@@ -531,7 +525,7 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
 }
 
 /**
- * custom quicksort, compares a array of bool vectors.
+ * custom quicksort, compares a array of bool vectors using their norm 1.
  * For each element e, it stores in norms the sum(e(i)) for later use
  * @param arr The bvector array to sort
  * @param low The lowest index (0)
@@ -539,15 +533,11 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
  * @param variables The number of variables of each bvector
  * @param norms An array storing the norms of the vectors
  */
-void quickSort(bvector* arr, int low, int high, int variables, int* norms) {
+void my_quicksort(bvector* arr, int low, int high, int variables, int* norms) {
     if (low < high) {
-        /* pi is partitioning index, arr[pi] is now
-           at right place */
         int pi = partition(arr, low, high, variables, norms);
-        if(norms)
-            norms[pi] = norm1(arr[pi], variables);
-        quickSort(arr, low, pi - 1, variables, norms);  // Before pi
-        quickSort(arr, pi + 1, high, variables, norms); // After pi
+        my_quicksort(arr, low, pi - 1, variables, norms);  // Before pi
+        my_quicksort(arr, pi + 1, high, variables, norms); // After pi
     }
 }
 
@@ -573,7 +563,7 @@ int free_f(void* p, size_t* s){
 implicantp_t* prime_implicants(fplus_t* f){
     size_t non_zeros_size = f -> size;
     bvector* result = NULL; //will store prime implicants
-    int result_size = 0; //will store number of prime implicants
+    size_t result_size = 0; //will store number of prime implicants
     list_t* old_list_2free = NULL;
     bvector* non_zeros;
     MALLOC(non_zeros, sizeof(bvector) * non_zeros_size, ;);
@@ -583,12 +573,11 @@ implicantp_t* prime_implicants(fplus_t* f){
     while(true) {
         int norms[non_zeros_size]; //will contain norm of each vector
         //sort non zero values
-        quickSort(non_zeros, 0, (int) non_zeros_size - 1, f -> variables, norms);
+        my_quicksort(non_zeros, 0, (int) non_zeros_size - 1, f->variables, norms);
 
-        for(size_t i = 0; i < non_zeros_size; i++)
-//            assert(norm1(non_zeros[i], f -> variables) == norms[i]);
-            norms[i] = norm1(non_zeros[i], f -> variables);
-        //TODO: fix norm calculation in quick sort
+        for(size_t i = 0; i < non_zeros_size; i++) {
+            norms[i] = norm1(non_zeros[i], f->variables);
+        }
 
         bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
         memset(taken, 0, sizeof(bool) * non_zeros_size);
@@ -661,13 +650,14 @@ implicantp_t* prime_implicants(fplus_t* f){
 
         //set as new array the joint implicants found
         non_zeros = list_as_array(impl_found, &non_zeros_size);
+
         //delete duplicates
         int duplicates_found = 0;
         for(size_t i = 0; i < non_zeros_size - 1 - duplicates_found; i++){
             for(size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
                 if (bvector_equals(non_zeros[i], non_zeros[j], f -> variables)) {
                     duplicates_found++;
-                    free(non_zeros[j]); //THIS WILL LEAK MEMORY
+                    free(non_zeros[j]);
                     non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
                     non_zeros[non_zeros_size - duplicates_found] = NULL;
                     j--; //recheck current element
@@ -694,8 +684,8 @@ implicantp_t* prime_implicants(fplus_t* f){
     }
     result_size -= duplicates_found;
 
+    //create implicants object
     REALLOC(result, sizeof(bvector) * result_size, ;);
-
     implicantp_t* implicants;
     MALLOC(implicants, sizeof(implicantp_t), free(result)); //TODO: should clean more stuff
     implicants -> implicants = result;
@@ -775,7 +765,7 @@ void implicants_print(implicantp_t* impl){
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
 essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
-    long f_size = exp2l(f -> variables); //exp size unnecessary as only non_zero points are needed
+    long f_size = (long) exp2l(f -> variables); //exp size unnecessary as only non_zero points are needed
     list_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
     bvector essential_implicants[f_size]; //stores the essential prime implicants
     int e_index = 0; //index of above and below array;
@@ -924,6 +914,13 @@ void productp_destroy(productp_t *p) {
     free(p);
 }
 
+/**
+ * Creates a product plus
+ * @param b A vector with the variables in the product (b[i] = true <=> variable is in the product)
+ * @param variables Number of total variables (also size of above vector)
+ * @param coeff coefficient of the product
+ * @return A pointer to the product
+ */
 productp_t* productp_create(bool* b, int variables, int coeff){
     productp_t* p;
     MALLOC(p, sizeof(productp_t), ;);
@@ -932,6 +929,9 @@ productp_t* productp_create(bool* b, int variables, int coeff){
     return p;
 }
 
+/**
+ * @return Given a product p, returns an exact copy
+ */
 productp_t* productp_copy(productp_t* p){
     productp_t* p_copy;
     MALLOC(p_copy, sizeof(productp_t), ;);
@@ -951,7 +951,7 @@ implicantp_t* implicants_copy(implicantp_t* impl){
     i_copy -> variables = impl -> variables;
     MALLOC(i_copy -> implicants, sizeof(bool*) * impl -> size, free(i_copy));
     for(int i = 0; i < impl -> size; i++){
-        MALLOC(i_copy -> implicants[i], sizeof(bool) * impl -> variables, ;);//TODO: improve free
+        MALLOC(i_copy -> implicants[i], sizeof(bool) * impl -> variables, ;);//TODO: improve clean
         memcpy(i_copy -> implicants[i], impl -> implicants[i], sizeof(bool) * impl -> variables);
     }
     return i_copy;
@@ -1002,7 +1002,6 @@ bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, 
     }
     source -> size += to_remove -> size;
     if(source -> size == to_remove -> size) {
-        printf("Returned false 'cause nothing to remove\n");
         return false;
     }
     return non_zero_values > 0;
@@ -1021,18 +1020,3 @@ bool r_cover_s(int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *
         }
     }
 }
-
-///**
-// * Checks if the points covered by b2 are also covered by b1
-// * @return true if b1 "covers" b2
-// */
-//bool implicant_of(bvector b1, bvector b2, int variables){
-//    for(int i = 0; i < variables; i++){
-//        if(b1[i] != b2[i]) {
-//            if(b2[i] == dash || b2[i] == not_present)
-//                continue;
-//            return false;
-//        }
-//    }
-//    return true;
-//}

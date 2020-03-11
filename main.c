@@ -1,18 +1,18 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <assert.h>
-#include "bool_utils.h"
 #include "bool_plus.h"
 #include "utils.h"
 
-#define VARIABLES 6
+#define VARIABLES 4
 #define MAX_VALUE 10
 
 int main() {
+    //test for sopp synthesis
+
     fplus_t* function; //will store the function from bool vector to N
 
-    for(int i = 0; i < 1; i++) {
+    int n_cycles = 1;
+    for(int i = 0; i < n_cycles; i++) {
         NULL_CHECK(function = fplus_create_random(VARIABLES, MAX_VALUE));
         fplus_print(function);
 

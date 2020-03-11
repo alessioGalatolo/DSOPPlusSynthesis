@@ -12,12 +12,12 @@
  * @return A pointer to a struct representing the function
  */
 bool_f* f_create(bool values[], int variables){
-    bool_f* boolf;
-    MALLOC(boolf, sizeof(bool_f), ;);
-    MALLOC(boolf -> values, sizeof(bool) * variables, free(boolf));
-    NULL_CHECK(memcpy(boolf -> values, values, sizeof(bool) * variables));
-    boolf -> variables = variables;
-    return boolf;
+    bool_f* f;
+    MALLOC(f, sizeof(bool_f), ;);
+    MALLOC(f -> values, sizeof(bool) * variables, free(f));
+    NULL_CHECK(memcpy(f -> values, values, sizeof(bool) * variables));
+    f -> variables = variables;
+    return f;
 }
 
 /**
@@ -29,14 +29,14 @@ bool_f* f_create(bool values[], int variables){
 bool_f* f_create_random(int variables){
 //TODO: FUNCTION IS WRONG
     srandom(time(NULL));
-    bool_f* boolf = malloc(sizeof(bool_f));
-    NULL_CHECK(boolf);
-    NULL_CHECK(boolf -> values = malloc(sizeof(bool) * variables));
+    bool_f* f = malloc(sizeof(bool_f));
+    NULL_CHECK(f);
+    NULL_CHECK(f -> values = malloc(sizeof(bool) * variables));
     for(int i = 0; i < variables; i++){
-        *((boolf -> values) + i) = random() % 2;
+        *((f -> values) + i) = random() % 2;
     }
-    boolf -> variables = variables;
-    return boolf;
+    f -> variables = variables;
+    return f;
 }
 
 //Returns the output of the function, given the binary input
@@ -74,6 +74,8 @@ bool product_of(bool_product* product, const bool input[]){
                 break;
             case 1:
                 result = result && input[i];
+                break;
+            default:
                 break;
         }
         i++;

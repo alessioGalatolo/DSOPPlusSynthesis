@@ -13,7 +13,7 @@
 
 //does a malloc and checks return values, if malloc failed prints error does 'clean' command and returns 0
 #define MALLOC(x, s, clean)\
-    if((x = malloc(s)) == NULL){\
+    if(((x) = malloc(s)) == NULL){\
         fprintf(stderr, "Malloc returned a null pointer\n");\
         clean;\
         return 0;\
@@ -26,7 +26,7 @@
             fprintf(stderr, "Realloc unable to allocate %ld memory. Returned a null pointer\n", s);\
             clean;\
         }\
-        x = tmp;\
+        (x) = tmp;\
     }
 
 #endif //SOP_SYNTHESIS_UTILS_H

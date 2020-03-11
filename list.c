@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "utils.h"
-#include <string.h>
 
 #define LIST_INIT_SIZE 100
 #define LIST_INCREMENT 2
@@ -37,9 +36,6 @@ int list_add(list_t *l, void* value, size_t size){
         REALLOC(l -> sizes, sizeof(size_t) * (l -> max_length) * LIST_INCREMENT, return 0;);
         l -> max_length *= LIST_INCREMENT;
     }
-
-//    MALLOC(l -> list[l -> current_length], size,;);
-//    memcpy(l -> list[l -> current_length], value, size);
     l -> list[l -> current_length] = value;
     l -> sizes[l -> current_length] = size;
     (l -> current_length)++;
@@ -61,7 +57,7 @@ void* list_get(list_t* l, size_t* size, int index){
 /**
  * @return The length of the list
  */
-int list_length(list_t* list){
+size_t list_length(list_t* list){
     if(!list)
         return 0;
     return list -> current_length;
