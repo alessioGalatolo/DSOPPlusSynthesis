@@ -11,6 +11,7 @@
 #define not_present 2
 #define dont_care 3
 #define dash 4 //used to join two vectors
+//TODO: maybe join not_present and dash to unique value
 
 typedef unsigned char bool;
 typedef bool* bvector; //its value may assume the defined above (false, true, not_present, dash)

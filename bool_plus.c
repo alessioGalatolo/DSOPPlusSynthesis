@@ -45,7 +45,9 @@ fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
  * @return A pointer to the function
  */
 fplus_t* fplus_create_random(int variables, int max_value){
-    srandom(time(NULL));
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    srandom(spec.tv_nsec);
     fplus_t* function;
     long f_size = (long) exp2l(variables);
     int non_zeros_index = 0;
@@ -225,7 +227,7 @@ sopp_t* sopp_create(){
 sopp_t* sopp_create_wsize(size_t expected_size){
     sopp_t* sopp;
     MALLOC(sopp, sizeof(sopp_t), ;);
-    int good_size = (int) (expected_size / GOOD_LOAD);
+    int good_size = (int) (expected_size / GOOD_LOAD) + 1; //always greater than 0
     while((sopp -> table = malloc(sizeof(list_t*) * good_size)) == NULL)
         good_size /= 2;
     memset(sopp -> table, 0, sizeof(list_t*) * good_size);
@@ -255,13 +257,6 @@ void sopp_destroy(sopp_t* sopp){
     free(sopp);
 }
 
-void product_print(productp_t* p){
-    for(int i = 0; i < p -> product -> variables; i++){
-        printf("%d ", p -> product -> product[i]);
-    }
-    printf("\n");
-}
-
 /**
  * Adds a product plus to the sopp form, if the product is already in the form,
  * its coefficient is updated
@@ -270,11 +265,8 @@ void product_print(productp_t* p){
  * @return The outcome of the operation
  */
 bool sopp_add(sopp_t* sopp, productp_t* p){
-    printf("adding product: ");
-    product_print(p);
     unsigned long hashcode = product_hashcode(p) % sopp -> table_size;
-    printf("has index %ld\n", hashcode);
-    fflush(stdout);
+
     if((double) (sopp -> current_length + 1) / sopp -> table_size > GOOD_LOAD)
         fprintf(stdout, "Warning: sopp table is exceeding good load, current size is %ld while max size is %ld\n", sopp -> current_length, sopp -> table_size);
 
@@ -286,7 +278,6 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
         list_add(sopp -> table[hashcode], product, sizeof(productp_t*));
         list_add(sopp -> array, product, sizeof(productp_t*));
         sopp -> current_length++;
-        fflush(stdout);
         return true;
     }
 
@@ -294,21 +285,12 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
     size_t size;
     productp_t** array = list_as_array(sopp -> table[hashcode], &size);
     size_t i = 0;
-    while(i < size && !bvector_equals(array[i] -> product -> product, product -> product -> product, product -> product -> variables)) {
-        printf("This vector ");
-        product_print(array[i]);
-        printf("is different from ");
-        product_print(p);
+    while(i < size && !bvector_equals(array[i] -> product -> product, product -> product -> product, product -> product -> variables))
         i++;
-        fflush(stdout);
-    }
     if(i < size) {
-        if(array[i] -> coeff < product -> coeff) {
-            //element was found, update value
-            array[i]->coeff = product->coeff;
-            return true;
-        }
-        free(product);
+        //element was found, update value
+        array[i]->coeff += product->coeff;
+        productp_destroy(product);
         return true;
     }
     //element was not found
@@ -415,7 +397,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
     implicantp_t* implicants; //will store prime implicants
     bool go_on;
 
-    NULL_CHECK(sopp = sopp_create_wsize(/*f -> size*/1));
+    NULL_CHECK(sopp = sopp_create_wsize(f -> size));
     NULL_CHECK(implicants = prime_implicants(f));
 
     fplus_t* f_copy = fplus_copy(f);
@@ -450,7 +432,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
         }
 
         fplus_update_non_zeros(f_copy);
-
         implicantp_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
         implicants_copy_destroy(new_implicants);
@@ -480,6 +461,8 @@ sopp_t* sopp_synthesis(fplus_t* f){
         if(implicant_chosen == -1)
             break;
         productp_t* p = productp_create(i_copy -> implicants[implicant_chosen], i_copy -> variables, min);
+
+        //change the dashed into not_present
         for(int k = 0; k < f -> variables; k++)
             if(p -> product -> product[k] == dash)
                 p -> product -> product[k] = not_present;
@@ -576,129 +559,130 @@ int free_f(void* p, size_t* s){
  * @param f
  * @return
  */
-implicantp_t* prime_implicants(fplus_t* f){
-    size_t non_zeros_size = f -> size;
-    bvector* result = NULL; //will store prime implicants
+implicantp_t* prime_implicants(fplus_t* f) {
+    size_t non_zeros_size = f->size;
+    bvector *result = NULL; //will store prime implicants
     size_t result_size = 0; //will store number of prime implicants
-    list_t* old_list_2free = NULL;
-    bvector* non_zeros;
+    list_t *old_list_2free = NULL;
+    bvector *non_zeros;
     MALLOC(non_zeros, sizeof(bvector) * non_zeros_size, ;);
-    memcpy(non_zeros, f -> non_zeros, sizeof(bvector) * non_zeros_size);
+    memcpy(non_zeros, f->non_zeros, sizeof(bvector) * non_zeros_size);
 
+    if(non_zeros_size > 0) {
+        while (true) {
+            int norms[non_zeros_size]; //will contain norm of each vector
+            //sort non zero values
+            my_quicksort(non_zeros, 0, (int) non_zeros_size - 1, f->variables, norms);
 
-    while(true) {
-        int norms[non_zeros_size]; //will contain norm of each vector
-        //sort non zero values
-        my_quicksort(non_zeros, 0, (int) non_zeros_size - 1, f->variables, norms);
+            for (size_t i = 0; i < non_zeros_size; i++) {
+                norms[i] = norm1(non_zeros[i], f->variables);
+            }
 
-        for(size_t i = 0; i < non_zeros_size; i++) {
-            norms[i] = norm1(non_zeros[i], f->variables);
-        }
+            bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
+            memset(taken, 0, sizeof(bool) * non_zeros_size);
 
-        bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
-        memset(taken, 0, sizeof(bool) * non_zeros_size);
+            list_t *impl_found = list_create();
 
-        list_t* impl_found = list_create();
-
-        //assert(norms contains matching norms of non_zeros elements);
-
-        //join matching vectors
-        for(size_t i = 0; i < non_zeros_size; i++){
-            size_t j = i + 1;
-            int current_elem_class = norms[i];
-            int class_has_changed = false;
-            while(!class_has_changed && j < non_zeros_size){
-                if(norms[j] == current_elem_class)
-                    j++;
-                else if(norms[j] > current_elem_class + 1)
-                    class_has_changed = true;
-                else{
-                    bvector elem = joinable_vectors(non_zeros[i], non_zeros[j], f -> variables);
-                    if(elem){
-                        taken[i] = true;
-                        taken[j] = true;
-                        list_add(impl_found, elem, sizeof(bvector));
+            //join matching vectors
+            for (size_t i = 0; i < non_zeros_size; i++) {
+                size_t j = i + 1;
+                int current_elem_class = norms[i];
+                int class_has_changed = false;
+                while (!class_has_changed && j < non_zeros_size) {
+                    if (norms[j] == current_elem_class)
+                        j++;
+                    else if (norms[j] > current_elem_class + 1)
+                        class_has_changed = true;
+                    else {
+                        bvector elem = joinable_vectors(non_zeros[i], non_zeros[j], f->variables);
+                        if (elem) {
+                            taken[i] = true;
+                            taken[j] = true;
+                            list_add(impl_found, elem, sizeof(bvector));
+                        }
+                        j++;
                     }
-                    j++;
                 }
             }
-        }
 
-        //case last cycle
-        if(list_length(impl_found) == 0){
-            if(!old_list_2free){
-                //only one cycle was made
-                MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
-                for(size_t i = 0; i < non_zeros_size; i++) {
-                    MALLOC(result[i], sizeof(bool) * f -> variables, free(result); free(non_zeros));
-                    memcpy(result[i], non_zeros[i], sizeof(bool) * f -> variables);
+            //case last cycle
+            if (list_length(impl_found) == 0) {
+                if (!old_list_2free) {
+                    //only one cycle was made
+                    MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
+                    for (size_t i = 0; i < non_zeros_size; i++) {
+                        MALLOC(result[i], sizeof(bool) * f->variables, free(result);
+                                free(non_zeros));
+                        memcpy(result[i], non_zeros[i], sizeof(bool) * f->variables);
+                    }
+                    free(non_zeros);
+                } else {
+                    MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
+                    memcpy(result, non_zeros, sizeof(bvector) * non_zeros_size);
+                    list_destroy(old_list_2free);
                 }
-                free(non_zeros);
-            }else {
-                MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
-                memcpy(result, non_zeros, sizeof(bvector) * non_zeros_size);
+                result_size = non_zeros_size;
+                list_destroy(impl_found);
+                break;
+            }
+
+            //add implicants that have not been joined
+            for (size_t i = 0; i < non_zeros_size; i++) {
+                if (!taken[i]) {
+                    bvector b;
+                    MALLOC(b, sizeof(bool) * f->variables, ;); //TODO: add more clean up
+                    memcpy(b, non_zeros[i], sizeof(bool) * f->variables);
+                    list_add(impl_found, b, sizeof(bvector));
+                }
+            }
+
+            //free list used in last cycle
+            if (old_list_2free) {
+                list_for_each(old_list_2free, free_f);
                 list_destroy(old_list_2free);
+            } else
+                //if first cycle
+                free(non_zeros);
+
+            old_list_2free = impl_found;
+
+            //set as new array the joint implicants found
+            non_zeros = list_as_array(impl_found, &non_zeros_size);
+
+            //delete duplicates
+            int duplicates_found = 0;
+            for (size_t i = 0; i < non_zeros_size - 1 - duplicates_found; i++) {
+                for (size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
+                    if (bvector_equals(non_zeros[i], non_zeros[j], f->variables)) {
+                        duplicates_found++;
+                        free(non_zeros[j]);
+                        non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
+                        non_zeros[non_zeros_size - duplicates_found] = NULL;
+                        j--; //recheck current element
+                    }
+                }
             }
-            result_size = non_zeros_size;
-            list_destroy(impl_found);
-            break;
+            non_zeros_size -= duplicates_found;
+
+
         }
-
-        //add implicants that have not been joined
-        for(size_t i = 0; i < non_zeros_size; i++){
-            if(!taken[i]) {
-                bvector b;
-                MALLOC(b, sizeof(bool) * f -> variables, ;); //TODO: add more clean up
-                memcpy(b, non_zeros[i], sizeof(bool) * f -> variables);
-                list_add(impl_found, b, sizeof(bvector));
-            }
-        }
-
-        //free list used in last cycle
-        if(old_list_2free) {
-            list_for_each(old_list_2free, free_f);
-            list_destroy(old_list_2free);
-        }else
-            //if first cycle
-            free(non_zeros);
-
-        old_list_2free = impl_found;
-
-        //set as new array the joint implicants found
-        non_zeros = list_as_array(impl_found, &non_zeros_size);
 
         //delete duplicates
         int duplicates_found = 0;
-        for(size_t i = 0; i < non_zeros_size - 1 - duplicates_found; i++){
-            for(size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
-                if (bvector_equals(non_zeros[i], non_zeros[j], f -> variables)) {
+        for (int i = 0; i < result_size - 1 - duplicates_found; i++) {
+            for (int j = i + 1; j < result_size - duplicates_found; j++) {
+                if (bvector_equals(result[i], result[j], f->variables)) {
                     duplicates_found++;
-                    free(non_zeros[j]);
-                    non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
-                    non_zeros[non_zeros_size - duplicates_found] = NULL;
-                    j--; //recheck current element
+                    free(result[j]);
+                    result[j] = result[result_size - duplicates_found];
+                    result[result_size - duplicates_found] = NULL;
+                    j--;
                 }
             }
         }
-        non_zeros_size -= duplicates_found;
-
-
+        result_size -= duplicates_found;
     }
 
-    //delete duplicates
-    int duplicates_found = 0;
-    for(int i = 0; i < result_size - 1 - duplicates_found; i++){
-        for(int j = i + 1; j < result_size - duplicates_found; j++) {
-            if (bvector_equals(result[i], result[j], f -> variables)) {
-                duplicates_found++;
-                free(result[j]);
-                result[j] = result[result_size - duplicates_found];
-                result[result_size - duplicates_found] = NULL;
-                j--;
-            }
-        }
-    }
-    result_size -= duplicates_found;
 
     //create implicants object
     REALLOC(result, sizeof(bvector) * result_size, ;);
