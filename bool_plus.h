@@ -79,7 +79,7 @@ bool sopp_add(sopp_t*, productp_t*); //adds a product to a sopp
 int sopp_value_of(sopp_t*, bool*); //returns the output of the sopp with the given variables values
 bool sopp_form_of(sopp_t*, fplus_t*); //returns true if the given sopp form is valid for the given function
 void sopp_print(sopp_t*); //prints the sopp
-sopp_t* sopp_synthesis(fplus_t*); //return a sopp minimal sopp form for the given function
+sopp_t* sopp_synthesis(fplus_t*); //return a minimal sopp form for the given function
 
 /*
  * implicants related functions

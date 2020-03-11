@@ -255,6 +255,13 @@ void sopp_destroy(sopp_t* sopp){
     free(sopp);
 }
 
+void product_print(productp_t* p){
+    for(int i = 0; i < p -> product -> variables; i++){
+        printf("%d ", p -> product -> product[i]);
+    }
+    printf("\n");
+}
+
 /**
  * Adds a product plus to the sopp form, if the product is already in the form,
  * its coefficient is updated
@@ -263,7 +270,11 @@ void sopp_destroy(sopp_t* sopp){
  * @return The outcome of the operation
  */
 bool sopp_add(sopp_t* sopp, productp_t* p){
+    printf("adding product: ");
+    product_print(p);
     unsigned long hashcode = product_hashcode(p) % sopp -> table_size;
+    printf("has index %ld\n", hashcode);
+    fflush(stdout);
     if((double) (sopp -> current_length + 1) / sopp -> table_size > GOOD_LOAD)
         fprintf(stdout, "Warning: sopp table is exceeding good load, current size is %ld while max size is %ld\n", sopp -> current_length, sopp -> table_size);
 
@@ -275,6 +286,7 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
         list_add(sopp -> table[hashcode], product, sizeof(productp_t*));
         list_add(sopp -> array, product, sizeof(productp_t*));
         sopp -> current_length++;
+        fflush(stdout);
         return true;
     }
 
@@ -282,11 +294,21 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
     size_t size;
     productp_t** array = list_as_array(sopp -> table[hashcode], &size);
     size_t i = 0;
-    while(i < size && !bvector_equals(array[i] -> product -> product, product -> product -> product, product -> product -> variables))
+    while(i < size && !bvector_equals(array[i] -> product -> product, product -> product -> product, product -> product -> variables)) {
+        printf("This vector ");
+        product_print(array[i]);
+        printf("is different from ");
+        product_print(p);
         i++;
+        fflush(stdout);
+    }
     if(i < size) {
-        //element was found, update value
-        array[i]->coeff = product->coeff;
+        if(array[i] -> coeff < product -> coeff) {
+            //element was found, update value
+            array[i]->coeff = product->coeff;
+            return true;
+        }
+        free(product);
         return true;
     }
     //element was not found
@@ -393,14 +415,13 @@ sopp_t* sopp_synthesis(fplus_t* f){
     implicantp_t* implicants; //will store prime implicants
     bool go_on;
 
-    NULL_CHECK(sopp = sopp_create_wsize(f -> size / f -> variables));
+    NULL_CHECK(sopp = sopp_create_wsize(/*f -> size*/1));
     NULL_CHECK(implicants = prime_implicants(f));
 
     fplus_t* f_copy = fplus_copy(f);
     implicantp_t* i_copy = implicants_copy(implicants);
 
     essentialsp_t* e;
-    int count = 0;
     do {
         if((e = essential_implicants(f_copy, i_copy)) == NULL)
             break;
@@ -429,7 +450,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
         }
 
         fplus_update_non_zeros(f_copy);
-        count++;
 
         implicantp_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
@@ -437,11 +457,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
 
         essentials_destroy(e); //memory leak
     }while(go_on);
-
-
-
-    printf("Did first cycle %d times\n", count + 1);
-    count = 0;
 
     while(i_copy -> size > 0) {
         int min = INT_MAX;
@@ -465,6 +480,9 @@ sopp_t* sopp_synthesis(fplus_t* f){
         if(implicant_chosen == -1)
             break;
         productp_t* p = productp_create(i_copy -> implicants[implicant_chosen], i_copy -> variables, min);
+        for(int k = 0; k < f -> variables; k++)
+            if(p -> product -> product[k] == dash)
+                p -> product -> product[k] = not_present;
         sopp_add(sopp, p);
         productp_destroy(p);
 
@@ -477,9 +495,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
         implicantp_t *new_implicants = prime_implicants(f_copy);
         remove_implicant_duplicates(i_copy, new_implicants, f_copy);
         implicants_copy_destroy(new_implicants);
-        count++;
     }
-    printf("Did second cycle %d times\n", count + 1);
 
     //clean up
     implicants_destroy(implicants);

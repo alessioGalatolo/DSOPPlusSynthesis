@@ -87,7 +87,7 @@ bool bvector_equals(bvector b1, bvector b2, int variables){
     if(!b1 || !b2)
         return false;
     for(int i = 0; i < variables; i++)
-        if(b1[i] != b2[i])
+        if(b1[i] != b2[i]/* && (b1[i] <= 1 || b2[i] <= 1)*/)
             return false;
     return true;
 }
