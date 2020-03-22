@@ -78,14 +78,6 @@ int list_for_each(list_t* list, int (*f) (void*, size_t*)){
 }
 
 /**
- * TODO: NOT YET IMPLEMENTED
- */
-int list_remove(list_t* l, void* obj){
-//    for(int i = 0; i < )
-    return 0;
-}
-
-/**
  * @param size Will contain the size of the array
  * @return The list as array
  */

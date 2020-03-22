@@ -20,7 +20,6 @@ list_t* list_create(); //creates a list
 int list_add(list_t *list, void* value, size_t size); //add to the list the value
 int list_for_each(list_t* list, int (*f) (void*, size_t*)); //applies the function to each element of the list
 void* list_get(list_t*, size_t*, int index); //gets the element at index
-int list_remove(list_t*, void* obj); //remove the first element (???)
 void* list_as_array(list_t*, size_t* size); //returns the list as an array
 size_t list_length(list_t*); //returns the list length
 void list_destroy(list_t*); //free the memory used by the list

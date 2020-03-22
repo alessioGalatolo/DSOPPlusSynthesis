@@ -7,7 +7,7 @@
 #define MAX_VALUE 10
 
 int main() {
-    //test for sopp synthesis
+    //test for dsopp synthesis
 
     fplus_t* function; //will store the function from bool vector to N
 
@@ -17,12 +17,11 @@ int main() {
         fplus_print(function);
 
         dsopp_t *dsopp = dsopp_synthesis(function);
-
         sopp_t* sopp = sopp_synthesis(function);
 
         sopp_print(sopp);
-
         dsopp_print(dsopp);
+
         assert(dsopp_form_of(dsopp, function));
 
         sopp_destroy(sopp);

@@ -2,7 +2,6 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <math.h>
 
 /**
@@ -21,25 +20,8 @@ bool_f* f_create(bool values[], int variables){
 }
 
 /**
- * Generates a boolean plus function with random outputs.
- * //TODO: FUNCTION IS WRONG
- * @param variables Number of variables taken by the function
- * @return A pointer to the function
+ * @return The output of the function, given the binary input
  */
-bool_f* f_create_random(int variables){
-//TODO: FUNCTION IS WRONG
-    srandom(time(NULL));
-    bool_f* f = malloc(sizeof(bool_f));
-    NULL_CHECK(f);
-    NULL_CHECK(f -> values = malloc(sizeof(bool) * variables));
-    for(int i = 0; i < variables; i++){
-        *((f -> values) + i) = random() % 2;
-    }
-    f -> variables = variables;
-    return f;
-}
-
-//Returns the output of the function, given the binary input
 bool f_get_value(bool_f* function, bool input[]){
     NULL_CHECK(function);
     int decimal = binary2decimal(input, function -> variables);
@@ -52,12 +34,12 @@ bool f_get_value(bool_f* function, bool input[]){
  * @param size The number of variables of the product
  * @return a pointer to the product
  */
-bool_product* product_create(bool product[], int size){
+bool_product* product_create(bool product[], unsigned variables){
     bool_product* new_prod;
     MALLOC(new_prod, sizeof(bool_product), ;);
-    MALLOC(new_prod -> product, sizeof(bool) * size, free(new_prod));
-    memcpy(new_prod -> product, product, sizeof(bool) * size);
-    new_prod -> variables = size;
+    MALLOC(new_prod -> product, sizeof(bool) * variables, free(new_prod));
+    memcpy(new_prod -> product, product, sizeof(bool) * variables);
+    new_prod -> variables = variables;
     return new_prod;
 }
 
@@ -83,7 +65,10 @@ bool product_of(bool_product* product, const bool input[]){
     return result;
 }
 
-bool bvector_equals(bvector b1, bvector b2, int variables){
+/**
+ * @return true if b1[i] == b2[i] for each i
+ */
+bool bvector_equals(const bool* b1, const bool* b2, unsigned variables){
     if(!b1 || !b2)
         return false;
     for(int i = 0; i < variables; i++)
@@ -98,7 +83,7 @@ bool bvector_equals(bvector b1, bvector b2, int variables){
  * @param variables The size of the vector
  * @return The sum of the elements of the vector
  */
-int norm1(const bool* b, int variables){
+int norm1(const bool* b, unsigned variables){
     int sum = 0;
     for(int i = 0; i < variables; i++){
         if(b[i] <= 1)
@@ -112,18 +97,25 @@ int norm1(const bool* b, int variables){
  * @param values an array of booleans
  * @param size of the array
  */
-int binary2decimal(const bool *values, int size) {
+int binary2decimal(const bool *values, unsigned variables) {
     int number = 0;
-    for(int i = 0; i < size; i++){
-        number += values[size - i - 1] * (int) exp2(i);
+    for(int i = 0; i < variables; i++){
+        number += values[variables - i - 1] * (int) exp2(i);
     }
     return number;
 }
 
-//array will be in descending order
-int* binary2decimals(const bool *values, int size, int* return_size){
+/**
+ * Given
+ * Note: array will be in descending order
+ * @param values
+ * @param variables
+ * @param return_size
+ * @return
+ */
+int* binary2decimals(const bool *values, unsigned  variables, int* return_size){
     *return_size = 1;
-    for(int i = 0; i < size; i++){
+    for(int i = 0; i < variables; i++){
         if(values[i] == dash || values[i] == not_present)
             *return_size *= 2;
     }
@@ -135,10 +127,10 @@ int* binary2decimals(const bool *values, int size, int* return_size){
     memset(numbers, 0, sizeof(int) * *return_size);
 
     //for each index of values, adds the power of 2 to each index of numbers
-    for(int i = 0; i < size; i++){
+    for(int i = 0; i < variables; i++){
 
         //if dash then half the numbers have to be updated
-        if(values[size - i - 1] == dash || values[size - i - 1] == not_present){
+        if(values[variables - i - 1] == dash || values[variables - i - 1] == not_present){
             for(int j = 0; j < *return_size; j += 2 * dash_found){
                 for(int k = 0; k < dash_found; k++){
                     numbers[j + k] += (int) exp2(i);
@@ -148,22 +140,21 @@ int* binary2decimals(const bool *values, int size, int* return_size){
             dash_found *= 2;
         }else{
             for(int j = 0; j < *return_size; j++){
-                numbers[j] += values[size - i - 1] * (int) exp2(i);
+                numbers[j] += values[variables - i - 1] * (int) exp2(i);
             }
         }
     }
     return numbers;
 }
 
-
 /**
  * Get the binary representation of the given number
  */
-bvector decimal2binary(int value, int size){
+bvector decimal2binary(int value, unsigned variables){
     bool* binary;
-    MALLOC(binary, sizeof(bool) * size, ;);
-    for(int i = 0; i < size; i++){
-        binary[size - i - 1] = value % 2;
+    MALLOC(binary, sizeof(bool) * variables, ;);
+    for(int i = 0; i < variables; i++){
+        binary[variables - i - 1] = value % 2;
         value /= 2;
     }
     return binary;
