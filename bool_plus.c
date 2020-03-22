@@ -13,12 +13,19 @@
 #define INIT_SIZE 100
 #define GOOD_LOAD 0.5
 
+//heap macros. TODO: replace with shift
+#define HEAP_PARENT(x) (floor((double) x / 2))
+#define HEAP_LEFT(x) (x*2)
+#define HEAP_RIGHT(x) (x*2 + 1)
+
 //internal functions
-void binaries(bool value[], int i, sopp_t *sop, fplus_t* fun, bool *result);
+void sopp_binaries(bool *value, int i, sopp_t *sop, fplus_t* fun, bool *result);
+void dsopp_binaries(bool *value, int i, dsopp_t *sop, fplus_t* fun, bool *result);
 bvector joinable_vectors(const bool*, const bool*, int size);
 productp_t** implicants2sop(bvector*, int size, int variables, int* final_size);
 long product_hashcode(productp_t *p);
 bool r_cover_s(int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *f, int* non_zero_values);
+bool lower_literals(productp_t* p1, productp_t* p2);
 
 /**
  * Creates a boolean plus function with the given parameters
@@ -71,7 +78,7 @@ fplus_t* fplus_create_random(int variables, int max_value){
 }
 
 /**
- * returns the output of the function with the given input
+ * returns the output of the function with the given input (binary)
  * @param f A pointer to the boolean plus function
  * @param input The input to the function given as a vector of bool
  * @return The output of the function
@@ -80,7 +87,12 @@ int fplus_value_of(fplus_t* f, bool input[]){
     return f -> values[binary2decimal(input, f -> variables)];
 }
 
-
+/**
+ * returns the output of the function at the given input (decimal)
+ * @param f A pointer to the boolean plus function
+ * @param index The input, given as decimal
+ * @return The output of the function
+ */
 int fplus_value_at(fplus_t* f, int index){
     return f -> values[index];
 }
@@ -144,6 +156,8 @@ void fplus_destroy(fplus_t* f){
 
 /**
  * Creates a copy of the given boolean plus function
+ * Note: The copy shares with the original the actual values
+ * of the bvector in f->non_zeros (the pointer is the same)
  * @param f function to copy
  * @return A new copy of the function
  */
@@ -186,6 +200,14 @@ void fplus_add2value(fplus_t* f, int index, int increment){
     }
 }
 
+/**
+ * Subtracts the decrement to the output of the function
+ * given the input as decimal. If a value <= 0 is reached
+ * the point is set as a don't care point
+ * @param f The function
+ * @param index The input given as a decimal
+ * @param decrement The amount to decrement
+ */
 void fplus_sub2value(fplus_t* f, int index, int decrement){
     f -> values[index] -= decrement;
     if(f -> values[index] <= 0) {
@@ -220,7 +242,9 @@ sopp_t* sopp_create(){
 }
 
 /**
- * Creates the sopp form keeping in mind the expected number of products if possible
+ * Tries to create the sopp with a table of the suggested size.
+ * Note: sopp table will have at most suggested_size / good_load constant, possibly lower
+ * Creates the sopp form keeping in mind the expected number of products
  * @param expected_size The expected number of products
  * @return A pointer to the sopp
  */
@@ -259,7 +283,7 @@ void sopp_destroy(sopp_t* sopp){
 
 /**
  * Adds a product plus to the sopp form, if the product is already in the form,
- * its coefficient is updated
+ * its coefficient is updated. The product is always copied before storage
  * @param sopp The sopp form
  * @param p The product plus to add
  * @return The outcome of the operation
@@ -342,8 +366,64 @@ bool sopp_form_of(sopp_t* sopp, fplus_t* fun){
     bool value[length];
     memset(value, 0, sizeof(bool) * length);
     bool result = true;
-    binaries(value, length, sopp, fun, &result);
+    sopp_binaries(value, length, sopp, fun, &result);
     return result;
+}
+
+/*
+ * rec-fun called by sopp_form_of
+ *
+ * generates all the possible combinations of the variables
+ * and checks if the non zero values of the fun matches the non zero values
+ * of the sop plus form
+ */
+void sopp_binaries(bool *value, int i, sopp_t* sop, fplus_t* fun, bool* result) {
+    if(*result) {
+        if (i == 0) {
+            int fvalue = fplus_value_of(fun, value);
+            *result = *result && (fvalue == 0 || sopp_value_of(sop, value) >= fvalue);
+        } else {
+            value[i - 1] = 0;
+            sopp_binaries(value, i - 1, sop, fun, result);
+            value[i - 1] = 1;
+            sopp_binaries(value, i - 1, sop, fun, result);
+        }
+    }
+}
+
+/**
+ * Checks if dsopp_t is a correct disjoint sop plus form of the function fun
+ * time: exponential in number of variables
+ * @return true it is valid
+ */
+bool dsopp_form_of(dsopp_t* sopp, fplus_t* fun){
+    int length = fun -> variables;
+    bool value[length];
+    memset(value, 0, sizeof(bool) * length);
+    bool result = true;
+    dsopp_binaries(value, length, sopp, fun, &result);
+    return result;
+}
+
+/*
+ * rec-fun called by dsopp_form_of
+ *
+ * generates all the possible combinations of the variables
+ * and checks if the values of the fun matches the values
+ * of the disjoint sop plus form
+ */
+void dsopp_binaries(bool *value, int i, dsopp_t* sop, fplus_t* fun, bool* result) {
+    if(*result) {
+        if (i == 0) {
+            int fvalue = fplus_value_of(fun, value);
+            *result = *result && sopp_value_of(sop, value) == fvalue;
+        } else {
+            value[i - 1] = 0;
+            sopp_binaries(value, i - 1, sop, fun, result);
+            value[i - 1] = 1;
+            sopp_binaries(value, i - 1, sop, fun, result);
+        }
+    }
 }
 
 /**
@@ -353,6 +433,7 @@ bool sopp_form_of(sopp_t* sopp, fplus_t* fun){
 void sopp_print(sopp_t* s){
     size_t size;
     productp_t** array = list_as_array(s -> array, &size);
+    printf("Sopp form is: \n");
     for(size_t i = 0; i < size; i++){
         printf("Product has coeff: %d and is: ", (array[i]) -> coeff);
         for(int j = 0; j < array[0] -> product -> variables; j++){
@@ -365,24 +446,23 @@ void sopp_print(sopp_t* s){
     }
 }
 
-/*
- * rec-fun called by sop_plus_of
- *
- * generates all the possible combinations of the variables
- * and checks if the non zero values of the fun matches the non zero values
- * of the sop plus form
+/**
+ * Prints the values in the dsopp form
+ * @param d The dsopp form
  */
-void binaries(bool value[], int i, sopp_t* sop, fplus_t* fun, bool* result) {
-    if(*result) {
-        if (i == 0) {
-            int fvalue = fplus_value_of(fun, value);
-            *result = *result && (fvalue == 0 || sopp_value_of(sop, value) >= fvalue);
-        } else {
-            value[i - 1] = 0;
-            binaries(value, i - 1, sop, fun, result);
-            value[i - 1] = 1;
-            binaries(value, i - 1, sop, fun, result);
+void dsopp_print(sopp_t* d){
+    size_t size;
+    productp_t** array = list_as_array(d -> array, &size);
+    printf("Dsopp form is: \n");
+    for(size_t i = 0; i < size; i++){
+        printf("Product has coeff: %d and is: ", (array[i]) -> coeff);
+        for(int j = 0; j < array[0] -> product -> variables; j++){
+            if(array[i] -> product -> product[j] > 1)
+                printf("- ");
+            else
+                printf("%d ", array[i] -> product -> product[j]);
         }
+        printf("\n");
     }
 }
 
@@ -416,8 +496,10 @@ sopp_t* sopp_synthesis(fplus_t* f){
                         max = cur_value;
                 }
             }
-            e -> implicants[i] -> coeff = max; //TODO: (should create new var)
+            int old_coeff = e -> implicants[i] -> coeff;
+            e -> implicants[i] -> coeff = max;
             sopp_add(sopp, e -> implicants[i]);
+            e -> implicants[i] -> coeff = old_coeff;
         }
 
         //for each implicant chosen update f values
@@ -433,15 +515,17 @@ sopp_t* sopp_synthesis(fplus_t* f){
 
         fplus_update_non_zeros(f_copy);
         implicantp_t *new_implicants = prime_implicants(f_copy);
-        go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
-        implicants_copy_destroy(new_implicants);
+        go_on = remove_implicant_duplicates_old(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
+        implicants_soft_destroy(new_implicants);
 
-        essentials_destroy(e); //memory leak
+        essentials_destroy(e);
     }while(go_on);
 
     while(i_copy -> size > 0) {
         int min = INT_MAX;
         int implicant_chosen = -1;
+
+        //select the implicant to add
         for (int i = 0; i < i_copy->size; i++) {
             int max = 0;
             int size;
@@ -475,9 +559,30 @@ sopp_t* sopp_synthesis(fplus_t* f){
             fplus_sub2value(f_copy, indexes[j], min);
         free(indexes);
 
-        implicantp_t *new_implicants = prime_implicants(f_copy);
-        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
-        implicants_copy_destroy(new_implicants);
+        //NEW TODO: OK?
+        int removed = 0;
+        int i = 0;
+        while(i < i_copy->size - removed){
+            indexes = binary2decimals(i_copy->implicants[i], f->variables, &size);
+            bool removable = true;
+            int j = 0;
+            while(removable && j < size){
+                removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
+                j++;
+            }
+            if(removable){
+                removed++;
+                free(i_copy->implicants[i]);
+                i_copy->implicants[i] = i_copy->implicants[i_copy->size - removed];
+            } else
+                i++;
+            free(indexes);
+        }
+
+        i_copy->size -= removed;
+//        implicantp_t *new_implicants = prime_implicants(f_copy);
+//        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
+//        implicants_soft_destroy(new_implicants);
     }
 
     //clean up
@@ -489,7 +594,9 @@ sopp_t* sopp_synthesis(fplus_t* f){
 }
 
 /**
- * standard partition function for quicksort adapted to a bvector
+ * Standard partition function for quicksort adapted to a bvector
+ * If norms != NULL, the norm of the vectors are stored at the corresponding
+ * index of the vector
  */
 int partition (bvector* arr, int low, int high, int variables, int* norms){
     // pivot (Element to be placed at right position)
@@ -530,7 +637,7 @@ int partition (bvector* arr, int low, int high, int variables, int* norms){
  * @param low The lowest index (0)
  * @param high The highest index (size - 1)
  * @param variables The number of variables of each bvector
- * @param norms An array storing the norms of the vectors
+ * @param norms If != NULL will be an array storing the norms of the vectors
  */
 void my_quicksort(bvector* arr, int low, int high, int variables, int* norms) {
     if (low < high) {
@@ -573,10 +680,6 @@ implicantp_t* prime_implicants(fplus_t* f) {
             int norms[non_zeros_size]; //will contain norm of each vector
             //sort non zero values
             my_quicksort(non_zeros, 0, (int) non_zeros_size - 1, f->variables, norms);
-
-            for (size_t i = 0; i < non_zeros_size; i++) {
-                norms[i] = norm1(non_zeros[i], f->variables);
-            }
 
             bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
             memset(taken, 0, sizeof(bool) * non_zeros_size);
@@ -683,7 +786,6 @@ implicantp_t* prime_implicants(fplus_t* f) {
         result_size -= duplicates_found;
     }
 
-
     //create implicants object
     REALLOC(result, sizeof(bvector) * result_size, ;);
     implicantp_t* implicants;
@@ -737,7 +839,11 @@ void implicants_destroy(implicantp_t* impl){
     free(impl);
 }
 
-void implicants_copy_destroy(implicantp_t* impl){
+/**
+ * Frees the memory used by an implicant leaving the memory
+ * used by each element of impl->implicants
+ */
+void implicants_soft_destroy(implicantp_t* impl){
     free(impl -> implicants);
     free(impl);
 }
@@ -942,6 +1048,7 @@ productp_t* productp_copy(productp_t* p){
 
 
 /**
+ * Creates a copy of the given implicant.
  * @return copy of the implicants passed as parameters
  */
 implicantp_t* implicants_copy(implicantp_t* impl){
@@ -957,6 +1064,74 @@ implicantp_t* implicants_copy(implicantp_t* impl){
     return i_copy;
 }
 
+/*
+ * An attempt to optimize below function.
+ * Although not very successful as new function doesn't behave
+ * the same.
+ */
+bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
+    //join without duplicates
+
+    //not the proper sort but good enough
+    my_quicksort(source->implicants, 0, source->size - 1, f->variables, NULL);
+    my_quicksort(to_remove->implicants, 0, to_remove->size - 1, f->variables, NULL);
+    bvector* joint_array;
+    MALLOC(joint_array, sizeof(bvector*) * (source->size + to_remove->size), ;);
+    int joint_index = 0;
+    int to_remove_index = 0;
+    int source_index = 0;
+    while(joint_index < source->size + to_remove->size && (to_remove_index < to_remove->size || source_index < source->size)){
+        int v1 = INT_MAX;
+        int v2 = INT_MAX;
+        if(source_index < source->size)
+            v1 = norm1(source->implicants[source_index], f->variables);
+        if(to_remove_index < to_remove->size)
+            v2 = norm1(to_remove->implicants[to_remove_index], f->variables);
+        if(v1 < v2){
+            joint_array[joint_index] = source->implicants[source_index];
+            source_index++;
+        }else if(v1 == v2 && bvector_equals(source->implicants[source_index], to_remove->implicants[to_remove_index], f->variables)) {
+            free(source->implicants[source_index]);
+            source_index++;
+            joint_array[joint_index] = to_remove->implicants[to_remove_index];
+            to_remove_index++;
+        }else{
+            //includes when v2 < v1 and when v2 = v1 but the vectors are different
+            joint_array[joint_index] = to_remove->implicants[to_remove_index];
+            to_remove_index++;
+        }
+        joint_index++;
+    }
+    REALLOC(joint_array, sizeof(bvector) * joint_index, ;);
+
+    int removed = 0;
+    int i = 0;
+    while(i < joint_index - removed){
+        int size;
+        int* indexes = binary2decimals(joint_array[i], f->variables, &size);
+        bool removable = true;
+        int j = 0;
+        while(removable && j < size){
+            removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
+            j++;
+        }
+        if(removable){
+            removed++;
+            free(joint_array[i]);
+            joint_array[i] = joint_array[joint_index - removed];
+        } else
+            i++;
+        free(indexes);
+    }
+
+    bool return_value = removed > 0 || joint_index < source->size + to_remove->size;
+
+    source->size = joint_index - removed;
+    source->implicants = joint_array;
+
+    return return_value;
+}
+
 /**
  * Joins source and to_remove while removing the implicants covering the same non zero points
  * @param source The original implicants. May have some implicants covering 0 or don't care point
@@ -964,7 +1139,7 @@ implicantp_t* implicants_copy(implicantp_t* impl){
  * @param f The boolean plus function
  * @return true if at least an implicant in source has been removed
  */
-bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
+bool remove_implicant_duplicates_old(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
     int removed = 0; //stores the number of removed implicants from source
     int non_zero_values = 0; //stores the number of non zero values encountered. if = 0 => no need to go on
 
@@ -1007,6 +1182,16 @@ bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, 
     return non_zero_values > 0;
 }
 
+/**
+ * Returns true if all non_zero points of s are covered by r
+ * @param r_indexes The points of r as decimal
+ * @param r_size The number of points of r
+ * @param s_indexes The points of s as decimal
+ * @param s_size The number of points of s
+ * @param f The function which output to check
+ * @param non_zero_values Will store the number of non-zero values found
+ * @return
+ */
 bool r_cover_s(int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *f, int* non_zero_values) {
     int i = 0; //index of r_indexes
     for(int k = 0; k < s_size; k++){
@@ -1019,4 +1204,253 @@ bool r_cover_s(int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *
             }
         }
     }
+}
+
+
+/**
+ * Calculates a minimal dsopp form for the given function
+ * dsopp form is minimal <=> the sum of its coefficients is minimal
+ * @param f A fplus function
+ * @return The minimal dsopp form
+ */
+dsopp_t* dsopp_synthesis(fplus_t* f){
+    dsopp_t* dsopp = sopp_create_wsize(f -> size);
+    NULL_CHECK(dsopp);
+    sopp_t* sopp = sopp_synthesis(f);
+    NULL_CHECK(sopp);
+    heap_t* heap = heap_create_wsize(sopp->current_length);
+    NULL_CHECK(heap);
+    fplus_t* f_copy = fplus_copy(f);
+
+    while(f_copy->size > 0) {
+        productp_t **products = list_as_array(sopp->array, NULL);
+        for (int i = 0; i < sopp->current_length; i++) {
+            int size;
+            //TODO: cache indexes
+            int *indexes = binary2decimals(products[i]->product->product, f->variables, &size);
+            int min = INT_MAX;
+            for (int j = 0; j < size; j++) {
+                int fvalue = fplus_value_at(f_copy, indexes[j]);
+                if (fvalue < min && fvalue != F_DONT_CARE_VALUE)
+                    min = fvalue;
+            }
+            if(min != INT_MAX)
+                heap_insert(heap, products[i], min);
+            free(indexes);
+        }
+        if(heap_size(heap) == 0)
+            break;
+        int max_value;
+        productp_t *p;
+        while ((p = heap_extract_max(heap, &max_value)) != NULL) {
+            int size;
+            int *indexes = binary2decimals(p->product->product, f->variables, &size);
+            for (int i = 0; i < size; i++)
+                fplus_sub2value(f_copy, indexes[i], max_value);
+            free(indexes);
+            int old_coeff = p->coeff;
+            p->coeff = max_value;
+            sopp_add(dsopp, p);
+            p->coeff = old_coeff;
+            heap_delete_useless(heap, f_copy);
+        }
+        fplus_update_non_zeros(f_copy);
+        sopp_destroy(sopp);
+        sopp = sopp_synthesis(f_copy);
+    }
+
+    heap_destroy(heap);
+    fplus_copy_destroy(f_copy);
+    sopp_destroy(sopp);
+    return dsopp;
+}
+
+
+/**
+ * Creates heap with default size
+ * @return A pointer to the heap
+ */
+heap_t* heap_create(){
+    return heap_create_wsize(INIT_SIZE);
+}
+
+/**
+ * Tries to create the heap with the suggested size.
+ * Note: Heap will have at most suggested_size, possibily lower
+ * @return A pointer to the heap
+ */
+heap_t* heap_create_wsize(size_t suggested_size){
+    heap_t* h;
+    int size = suggested_size;
+    MALLOC(h, sizeof(heap_t), ;);
+    //try to alloc suggested_size
+    while((h->products = malloc(sizeof(productp_t*) * size)) == NULL)
+        size /= 2; //suggested_size is too big, try lower
+    MALLOC(h->minimal_points, sizeof(int) * size, free(h->products); free(h));
+    h->current_size = 0;
+    h->max_size = size;
+    return h;
+}
+
+/**
+ * Inserts a key into the heap
+ * @param h The heap
+ * @param k The key
+ * @param p The product associated with the key
+ * @return true if the insertion was successful,
+ *      false in case heap needs to be extended but memory is full
+ */
+bool heap_insert(heap_t* h, productp_t* p, int k){
+    if(h->current_size == h->max_size){
+        REALLOC(h->products, sizeof(productp_t*) * h->max_size * 2, ;);
+        REALLOC(h->minimal_points, sizeof(int) * h->max_size * 2, ;);
+        h->max_size *= 2;
+    }
+    h->minimal_points[h->current_size] = INT_MIN;
+    heap_increase_key(h, p, k, h->current_size);
+    h->current_size++;
+
+    return true;
+}
+
+/**
+ * @return true if p1 has lower literals than p2
+ */
+bool lower_literals(productp_t* p1, productp_t* p2){
+    int sum1 = 0;
+    int sum2 = 0;
+    for(int i = 0; i < p1->product->variables; i++){
+        sum1 += p1->product->product[i] < 2;
+        sum2 += p2->product->product[i] < 2;
+    }
+    return sum1 < sum2;
+}
+
+/**
+ * Key at index has to be inserted. It is compared to the other and put
+ * to the right place. If key is equal to the compared value the greater
+ * is the one with the product associated with the least amount of literals
+ * @param h The heap
+ * @param product The product associated with the key
+ * @param value The key
+ * @param index The index where the key has to be initially placed
+ * @return
+ */
+bool heap_increase_key(heap_t* h, productp_t* product, int value, int index){
+    if(h->minimal_points[index] >= value)
+        return false; //error
+    h->minimal_points[index] = value;
+    h->products[index] = product;
+    int parent = HEAP_PARENT(index);
+
+    //while value is greater than parent
+    while(index > 0 && (h->minimal_points[parent] < h->minimal_points[index] ||
+            (h->minimal_points[parent] == h->minimal_points[index] && lower_literals(h->products[index], h->products[parent])))){
+        int tmp = h->minimal_points[index];
+        void* tmp_p = h->products[index];
+        h->minimal_points[index] = h->minimal_points[parent];
+        h->products[index] = h->products[parent];
+        h->minimal_points[parent] = tmp;
+        h->products[parent] = tmp_p;
+
+        index = parent;
+        parent = HEAP_PARENT(index);
+    }
+}
+
+/**
+ * Gets and removes the max from the heap
+ * @param h The heap
+ * @param value A pointer to integer. Will contain the key
+ * @return The product associated with the key
+ */
+productp_t* heap_extract_max(heap_t* h, int* value) {
+    NULL_CHECK(h);
+    if(h->current_size == 0)
+        return NULL;
+
+    *value = h->minimal_points[0];
+    void* return_value = h->products[0];
+    h->current_size--;
+    h->minimal_points[0] = h->minimal_points[h->current_size];
+    h->products[0] = h->products[h->current_size];
+    max_heapify(h, 0);
+
+    return return_value;
+}
+
+/**
+ * Given the index of a misplaced key, it re-balances the heap
+ * @param h The heap
+ * @param index The index to re-balance
+ */
+void max_heapify(heap_t* h, int index){
+    int l = HEAP_LEFT(index);
+    int r = HEAP_RIGHT(index);
+    int max = index;
+    if(l < h->current_size && h->minimal_points[l] > h->minimal_points[index])
+        max = l;
+    if(r < h->current_size && h->minimal_points[r] > h->minimal_points[index])
+        max = r;
+    if(max != index){
+        int tmp = h->minimal_points[index];
+        void* tmp_p = h->products[index];
+        h->minimal_points[index] = h->minimal_points[max];
+        h->products[index] = h->products[max];
+        h->minimal_points[max] = tmp;
+        h->products[max] = tmp_p;
+        max_heapify(h, max);
+    }
+}
+
+/**
+ * Free the memory used by the heap
+ * @param h The heap
+ */
+void heap_destroy(heap_t* h){
+    if(!h)
+        return;
+    free(h->products);
+    free(h->minimal_points);
+    free(h);
+}
+
+/**
+ * Checks all the elements of the heap deleting
+ * the implicants that cover at least one 0 point
+ * of the function
+ * @param h The heap
+ * @param f The function used to check the 0 points
+ */
+void heap_delete_useless(heap_t* h, fplus_t* f){
+    int i = 0;
+    while(i < h->current_size){
+        int size;
+        int* indexes = binary2decimals(h->products[i]->product->product, f->variables, &size);
+        bool deletable = false;
+        int j = 0;
+        while(j < size && !deletable){
+            if(fplus_value_at(f, indexes[j]) < 1)
+                deletable = true;
+            j++;
+        }
+        free(indexes);
+        if(deletable){
+            //TODO: free?
+            h->current_size--;
+            h->minimal_points[i] = h->minimal_points[h->current_size];
+            h->products[i] = h->products[h->current_size];
+            max_heapify(h, i);
+        } else
+            i++;
+    }
+}
+
+
+/**
+ * @param h The heap
+ * @return The elements in h
+ */
+int heap_size(heap_t* h){
+    return h->current_size;
 }

@@ -16,13 +16,17 @@ int main() {
         NULL_CHECK(function = fplus_create_random(VARIABLES, MAX_VALUE));
         fplus_print(function);
 
-        sopp_t *sopp;
-        sopp = sopp_synthesis(function);
+        dsopp_t *dsopp = dsopp_synthesis(function);
+
+        sopp_t* sopp = sopp_synthesis(function);
 
         sopp_print(sopp);
-        assert(sopp_form_of(sopp, function));
+
+        dsopp_print(dsopp);
+        assert(dsopp_form_of(dsopp, function));
 
         sopp_destroy(sopp);
+        sopp_destroy(dsopp);
         fplus_destroy(function);
     }
 
