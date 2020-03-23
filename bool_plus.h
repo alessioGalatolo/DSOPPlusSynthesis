@@ -59,8 +59,8 @@ typedef sopp_t dsopp_t; //same structure but they represent different definition
 
 //heap used for dsopp synthesis
 typedef struct _heap_t{
-    int* minimal_points;
-    productp_t ** products;
+    int* minimal_points; //will store the key
+    int* indexes; //store the index of value associated with minimal_points
     size_t max_size;
     size_t current_size;
 }heap_t;
@@ -129,12 +129,12 @@ void essentials_destroy(essentialsp_t*); //frees the heap taken by the above fun
  */
 heap_t* heap_create(); //create heap with default size
 heap_t* heap_create_wsize(size_t suggested_size); //create heap with suggested size
-bool heap_insert(heap_t *h, productp_t *p, int k); //insert key in heap
-bool heap_increase_key(heap_t* h, productp_t* product, int value, int index);
-productp_t* heap_extract_max(heap_t*, int*); //get and remove max element
-void max_heapify(heap_t*, int index); //move key at index to proper location
+bool heap_insert(heap_t *h, int k, int index, productp_t**); //insert key in heap
+bool heap_increase_key(heap_t* h, int k, int index, unsigned i_index, productp_t**);
+int heap_extract_max(heap_t*, int* index, productp_t**); //get and remove max element
+void max_heapify(heap_t*, unsigned index, productp_t**); //move key at index to proper location
 int heap_size(heap_t*); //current number of elements in heap
-void heap_delete_useless(heap_t*, fplus_t*); //will delete implicants covering 0 points of f
+void heap_delete_useless(heap_t*, fplus_t*, productp_t** p, int** indexes_array, const int* sizes); //will delete implicants covering 0 points of f
 void heap_destroy(heap_t*); //free memory allocated by heap
 
 

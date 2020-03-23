@@ -15,9 +15,9 @@
 #define GOOD_LOAD 0.5
 
 //heap macros
-#define HEAP_PARENT(x) (x >> 1)
-#define HEAP_LEFT(x) (x << 1)
-#define HEAP_RIGHT(x) ((x << 1) + 1)
+#define HEAP_PARENT(x) (x >> (unsigned) 1)
+#define HEAP_LEFT(x) (x << (unsigned)1)
+#define HEAP_RIGHT(x) ((x << (unsigned) 1) + 1)
 
 //internal functions
 void sopp_binaries(bool *value, unsigned i, sopp_t *sop, fplus_t* fun, bool *result);
@@ -406,40 +406,65 @@ dsopp_t* dsopp_synthesis(fplus_t* f){
     fplus_t* f_copy = fplus_copy(f);
 
     while(f_copy->size > 0) {
+        int** indexes_array;
+        int* sizes;
+        MALLOC(indexes_array, sizeof(int*) * sopp->current_length,
+               sopp_destroy(sopp); sopp_destroy(dsopp);
+                       heap_destroy(heap); fplus_copy_destroy(f_copy););
+        MALLOC(sizes, sizeof(int) * sopp->current_length,
+               sopp_destroy(sopp); sopp_destroy(dsopp);
+                       heap_destroy(heap); fplus_copy_destroy(f_copy);
+                       free(indexes_array););
+
         productp_t **products = list_as_array(sopp->array, NULL);
         for (int i = 0; i < sopp->current_length; i++) {
             int size;
-            //TODO: cache indexes
             int *indexes = binary2decimals(products[i]->product->product, f->variables, &size);
+            sizes[i] = size;
+            indexes_array[i] = indexes;
+
             int min = INT_MAX;
             for (int j = 0; j < size; j++) {
                 int fvalue = fplus_value_at(f_copy, indexes[j]);
                 if (fvalue < min && fvalue != F_DONT_CARE_VALUE)
                     min = fvalue;
             }
-            if(min != INT_MAX)
-                heap_insert(heap, products[i], min);
-            free(indexes);
+            if(min != INT_MAX) {
+                assert(min != 0); //TODO: remove
+                heap_insert(heap, min, i, products);
+            }
         }
-        if(heap_size(heap) == 0)
+        if(heap_size(heap) == 0) {
+            //clean
+            for(int i = 0; i < sopp->current_length; i++)
+                free(indexes_array[i]);
+            free(indexes_array);
+            free(sizes);
             break;
+        }
         int max_value;
-        productp_t *p;
-        while ((p = heap_extract_max(heap, &max_value)) != NULL) {
-            int size;
-            int *indexes = binary2decimals(p->product->product, f->variables, &size);
+        int p_index;
+        while ((max_value = heap_extract_max(heap, &p_index, products))) {
+            int size = sizes[p_index];
+            int *indexes = indexes_array[p_index];
             for (int i = 0; i < size; i++)
                 fplus_sub2value(f_copy, indexes[i], max_value);
-            free(indexes);
-            int old_coeff = p->coeff;
-            p->coeff = max_value;
-            sopp_add(dsopp, p);
-            p->coeff = old_coeff;
-            heap_delete_useless(heap, f_copy);
+            int old_coeff = products[p_index]->coeff;
+            products[p_index]->coeff = max_value;
+            sopp_add(dsopp, products[p_index]);
+            products[p_index]->coeff = old_coeff;
+            heap_delete_useless(heap, f_copy, products, indexes_array, sizes);
         }
         fplus_update_non_zeros(f_copy);
+        int sopp_length = sopp->current_length;
         sopp_destroy(sopp);
         sopp = sopp_synthesis(f_copy);
+
+        //clean
+        for(int i = 0; i < sopp_length; i++)
+            free(indexes_array[i]);
+        free(indexes_array);
+        free(sizes);
     }
 
     heap_destroy(heap);
@@ -1293,9 +1318,9 @@ heap_t* heap_create_wsize(size_t suggested_size){
     int size = suggested_size;
     MALLOC(h, sizeof(heap_t), ;);
     //try to alloc suggested_size
-    while((h->products = malloc(sizeof(productp_t*) * size)) == NULL)
+    while((h->minimal_points = malloc(sizeof(int) * size)) == NULL)
         size /= 2; //suggested_size is too big, try lower
-    MALLOC(h->minimal_points, sizeof(int) * size, free(h->products); free(h));
+    MALLOC(h->indexes, sizeof(int) * size, free(h->minimal_points); free(h););
     h->current_size = 0;
     h->max_size = size;
     return h;
@@ -1309,49 +1334,54 @@ heap_t* heap_create_wsize(size_t suggested_size){
  * @return true if the insertion was successful,
  *      false in case heap needs to be extended but memory is full
  */
-bool heap_insert(heap_t* h, productp_t* p, int k){
+bool heap_insert(heap_t* h, int k, int index, productp_t** products){
     if(h->current_size == h->max_size){
-        REALLOC(h->products, sizeof(productp_t*) * h->max_size * 2, ;);
         REALLOC(h->minimal_points, sizeof(int) * h->max_size * 2, ;);
+        REALLOC(h->indexes, sizeof(int) * h->max_size * 2, ;);
         h->max_size *= 2;
     }
     h->minimal_points[h->current_size] = INT_MIN;
-    heap_increase_key(h, p, k, h->current_size);
+    heap_increase_key(h, k, index, h->current_size, products);
     h->current_size++;
 
     return true;
 }
 
 /**
- * Key at index has to be inserted. It is compared to the other and put
+ * Key at i_index has to be inserted. It is compared to the other and put
  * to the right place. If key is equal to the compared value the greater
  * is the one with the product associated with the least amount of literals
  * @param h The heap
- * @param product The product associated with the key
+ * @param product The product associated with the key TODO: recheck
  * @param value The key
- * @param index The index where the key has to be initially placed
- * @return
+ * @param i_index The index where the key has to be initially placed
+ * @return true if the operation was successful
  */
-bool heap_increase_key(heap_t* h, productp_t* product, int value, int index){
-    if(h->minimal_points[index] >= value)
+bool heap_increase_key(heap_t* h, int k, int index, unsigned i_index, productp_t** products){
+    if(h->minimal_points[i_index] >= k)
         return false; //error
-    h->minimal_points[index] = value;
-    h->products[index] = product;
-    int parent = HEAP_PARENT(index);
+    h->minimal_points[i_index] = k;
+    h->indexes[i_index] = index;
+    int i_key = h->minimal_points[i_index];
+    int parent_index = HEAP_PARENT(i_index);
+    int parent_key = h->minimal_points[parent_index];
 
     //while value is greater than parent
-    while(index > 0 && (h->minimal_points[parent] < h->minimal_points[index] ||
-            (h->minimal_points[parent] == h->minimal_points[index] && lower_literals(h->products[index], h->products[parent])))){
-        int tmp = h->minimal_points[index];
-        void* tmp_p = h->products[index];
-        h->minimal_points[index] = h->minimal_points[parent];
-        h->products[index] = h->products[parent];
-        h->minimal_points[parent] = tmp;
-        h->products[parent] = tmp_p;
+    while(i_index > 0 && (parent_key < i_key || (parent_key == i_key &&
+            lower_literals(products[h->indexes[i_index]], products[h->indexes[parent_index]])))){
+        int tmp = h->indexes[i_index];
+        int tmp_key = h->minimal_points[i_index];
+        h->indexes[i_index] = h->indexes[parent_index];
+        h->indexes[parent_index] = tmp;
+        h->minimal_points[i_index] = h->minimal_points[parent_index];
+        h->minimal_points[parent_index] = tmp_key;
 
-        index = parent;
-        parent = HEAP_PARENT(index);
+        i_index = parent_index;
+        i_key = parent_key;
+        parent_index = HEAP_PARENT(i_index);
+        parent_key = h->minimal_points[parent_index];
     }
+    return true;
 }
 
 /**
@@ -1373,17 +1403,17 @@ bool lower_literals(productp_t* p1, productp_t* p2){
  * @param value A pointer to integer. Will contain the key
  * @return The product associated with the key
  */
-productp_t* heap_extract_max(heap_t* h, int* value) {
+int heap_extract_max(heap_t* h, int* index, productp_t** products) {
     NULL_CHECK(h);
     if(h->current_size == 0)
-        return NULL;
+        return 0;
 
-    *value = h->minimal_points[0];
-    void* return_value = h->products[0];
+    int return_value = h->minimal_points[0];
+    *index = h->indexes[0];
     h->current_size--;
     h->minimal_points[0] = h->minimal_points[h->current_size];
-    h->products[0] = h->products[h->current_size];
-    max_heapify(h, 0);
+    h->indexes[0] = h->indexes[h->current_size];
+    max_heapify(h, 0, products);
 
     return return_value;
 }
@@ -1393,22 +1423,24 @@ productp_t* heap_extract_max(heap_t* h, int* value) {
  * @param h The heap
  * @param index The index to re-balance
  */
-void max_heapify(heap_t* h, int index){
+void max_heapify(heap_t* h, unsigned index, productp_t** products){
     int l = HEAP_LEFT(index);
     int r = HEAP_RIGHT(index);
-    int max = index;
-    if(l < h->current_size && h->minimal_points[l] > h->minimal_points[index])
+    unsigned max = index;
+    if(l < h->current_size && (h->minimal_points[l] > h->minimal_points[index] ||
+            (h->minimal_points[l] == h->minimal_points[index] && lower_literals(products[h->indexes[index]], products[h->indexes[l]]))))
         max = l;
-    if(r < h->current_size && h->minimal_points[r] > h->minimal_points[index])
+    if(r < h->current_size && (h->minimal_points[r] > h->minimal_points[index] ||
+       (h->minimal_points[r] == h->minimal_points[index] && lower_literals(products[h->indexes[index]], products[h->indexes[r]]))))
         max = r;
     if(max != index){
-        int tmp = h->minimal_points[index];
-        void* tmp_p = h->products[index];
+        int tmp_key = h->minimal_points[index];
+        int tmp_index = h->indexes[index];
         h->minimal_points[index] = h->minimal_points[max];
-        h->products[index] = h->products[max];
-        h->minimal_points[max] = tmp;
-        h->products[max] = tmp_p;
-        max_heapify(h, max);
+        h->indexes[index] = h->indexes[max];
+        h->minimal_points[max] = tmp_key;
+        h->indexes[max] = tmp_index;
+        max_heapify(h, max, products);
     }
 }
 
@@ -1427,11 +1459,11 @@ int heap_size(heap_t* h){
  * @param h The heap
  * @param f The function used to check the 0 points
  */
-void heap_delete_useless(heap_t* h, fplus_t* f){
+void heap_delete_useless(heap_t* h, fplus_t* f, productp_t** p, int** indexes_array, const int* sizes){
     int i = 0;
     while(i < h->current_size){
-        int size;
-        int* indexes = binary2decimals(h->products[i]->product->product, f->variables, &size);
+        int size = sizes[h->indexes[i]];
+        int* indexes = indexes_array[h->indexes[i]];
         bool deletable = false;
         int j = 0;
         while(j < size && !deletable){
@@ -1439,12 +1471,11 @@ void heap_delete_useless(heap_t* h, fplus_t* f){
                 deletable = true;
             j++;
         }
-        free(indexes);
         if(deletable){
             h->current_size--;
             h->minimal_points[i] = h->minimal_points[h->current_size];
-            h->products[i] = h->products[h->current_size];
-            max_heapify(h, i);
+            h->indexes[i] = h->indexes[h->current_size];
+            max_heapify(h, i, p);
         } else
             i++;
     }
@@ -1457,7 +1488,7 @@ void heap_delete_useless(heap_t* h, fplus_t* f){
 void heap_destroy(heap_t* h){
     if(!h)
         return;
-    free(h->products);
+    free(h->indexes);
     free(h->minimal_points);
     free(h);
 }
