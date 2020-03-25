@@ -47,7 +47,7 @@ bool_product* product_create(bool product[], unsigned variables){
  * @return the output of the product with the given variable values
  */
 bool product_of(bool_product* product, const bool input[]){
-    bool result = 1;
+    bool result = true;
     int i = 0;
     while(result && i < product -> variables){
         switch(product -> product[i]){
@@ -100,6 +100,8 @@ int norm1(const bool* b, unsigned variables){
 int binary2decimal(const bool *values, unsigned variables) {
     int number = 0;
     for(int i = 0; i < variables; i++){
+        if(values[variables - i - 1] > 1)
+            return -1;
         number += values[variables - i - 1] * (int) exp2(i);
     }
     return number;

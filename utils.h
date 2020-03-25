@@ -3,7 +3,7 @@
 #define SOP_SYNTHESIS_UTILS_H
 
 #include <stdio.h>
-
+#include <stdlib.h>
 
 #define NULL_CHECK(x)\
     if((x) == NULL){\

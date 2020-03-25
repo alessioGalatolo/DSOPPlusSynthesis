@@ -13,9 +13,17 @@
 #ifndef SOP_SYNTHESIS_BOOL_PLUS_H
 #define SOP_SYNTHESIS_BOOL_PLUS_H
 
+//value for don't care point in f
 #define F_DONT_CARE_VALUE (-1)
 
-#include "list.h"
+//distribution of non zero values when building a random fplus
+#define PROBABILITY_NON_ZERO_VALUE 50
+
+//parameter for sopp representation in semi-hashtable
+#define INIT_SIZE 100
+#define GOOD_LOAD 0.5
+
+#include "arraylist.h"
 
 //a boolean product with a coefficient
 typedef struct{
@@ -40,24 +48,30 @@ typedef struct {
 
 //stores a list of essential prime implicants and their essential points
 typedef struct {
-    productp_t** implicants;
-    int impl_size;
-    bool** points;
-    int points_size;
+    productp_t** implicants; //list of essential implicants
+    int impl_size; //size of above list
+    bool** points; //list of point covered by the implicants
+    int points_size; //size of above list
 }essentialsp_t;
 
 //uses hashtable to store sop
 //no duplicates are allowed
 typedef struct{
-    list_t** table; //the hashtable
+    alist_t** table; //the hashtable
     size_t table_size; //number of buckets
     size_t current_length; //number of actual elements
-    list_t* array; //list with all the elements
+    alist_t* array; //list with all the elements
 }sopp_t; //sop plus form
 
 typedef sopp_t dsopp_t; //same structure but they represent different definitions
 
-//heap used for dsopp synthesis
+/*
+ * heap used for dsopp synthesis
+ * minimal_points will store the values to be compared
+ * Each value is associated with an external array, to keep its index
+ * the array 'indexes' is used. The i-sm element of indexes will store the index
+ * associated with the i-sm element of minimal_points *
+ */
 typedef struct _heap_t{
     int* minimal_points; //will store the key
     int* indexes; //store the index of value associated with minimal_points
@@ -82,7 +96,7 @@ sopp_t* sopp_synthesis(fplus_t*); //return a minimal sopp form for the given fun
  */
 bool dsopp_form_of(dsopp_t*, fplus_t*); //returns true if the given dsopp form is valid for the given function
 dsopp_t* dsopp_synthesis(fplus_t*); //return a minimal dsopp form for the given function
-void dsopp_print(dsopp_t*);
+void dsopp_print(dsopp_t*); //prints the dsopp
 
 /*
  * fplus related functions
@@ -91,8 +105,10 @@ fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size); /
 fplus_t* fplus_create_random(unsigned variables, int max_value); //creates a boolean plus function with random outputs
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
 int fplus_value_at(fplus_t*, int); //returns the output of the function at the given index
+int* fplus_value_pointer(fplus_t* f, int index); //TODO:
 void fplus_add2value(fplus_t*, int index, int increment); //add given value to the output of the function in the given input
 void fplus_sub2value(fplus_t* f, int index, int decrement); //subtracts value to the output of the function in the given inputs
+void fplus_sub2value_dsopp(fplus_t* f, int index, int decrement); //TODO:
 void fplus_update_non_zeros(fplus_t*); //re-calculates the non_zeros array
 fplus_t* fplus_copy(fplus_t*); //returns a copy of f
 void fplus_copy_destroy(fplus_t*); //destroys a function created with fplus_copy
@@ -121,21 +137,8 @@ void implicants_destroy(implicantp_t*); //frees the heap taken by the above func
  * essential related functions
  */
 essentialsp_t* essential_implicants(fplus_t*, implicantp_t*); //returns the essential prime implicants
-void essentials_print(essentialsp_t*, int); //prints the implicants and the points
+void essentials_print(essentialsp_t*, unsigned); //prints the implicants and the points
 void essentials_destroy(essentialsp_t*); //frees the heap taken by the above function
-
-/*
- * heap related function
- */
-heap_t* heap_create(); //create heap with default size
-heap_t* heap_create_wsize(size_t suggested_size); //create heap with suggested size
-bool heap_insert(heap_t *h, int k, int index, productp_t**); //insert key in heap
-bool heap_increase_key(heap_t* h, int k, int index, unsigned i_index, productp_t**);
-int heap_extract_max(heap_t*, int* index, productp_t**); //get and remove max element
-void max_heapify(heap_t*, unsigned index, productp_t**); //move key at index to proper location
-int heap_size(heap_t*); //current number of elements in heap
-void heap_delete_useless(heap_t*, fplus_t*, productp_t** p, int** indexes_array, const int* sizes); //will delete implicants covering 0 points of f
-void heap_destroy(heap_t*); //free memory allocated by heap
 
 
 #endif //SOP_SYNTHESIS_BOOL_PLUS_H

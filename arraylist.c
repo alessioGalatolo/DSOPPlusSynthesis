@@ -1,6 +1,4 @@
-#include "list.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "arraylist.h"
 #include "utils.h"
 
 #define LIST_INIT_SIZE 100
@@ -10,9 +8,9 @@
  * Creates a list object
  * @return The pointer to the newly created list
  */
-list_t* list_create(){
-    list_t* list;
-    MALLOC(list, sizeof(list_t),;);
+alist_t* alist_create(){
+    alist_t* list;
+    MALLOC(list, sizeof(alist_t), ;);
     MALLOC(list -> list, sizeof(void*) * LIST_INIT_SIZE,free(list));
     MALLOC(list -> sizes, sizeof(size_t) * LIST_INIT_SIZE,free(list -> list); free(list));
     list -> current_length = 0;
@@ -22,23 +20,23 @@ list_t* list_create(){
 
 /**
  * Adds the value to the list, keeps only the pointer
- * @param l The list
+ * @param list The list
  * @param value The value to add to the list
  * @param size The size of values
  * @return the outcome of the operation
  */
-int list_add(list_t *l, void* value, size_t size){
-    if(!l)
+int alist_add(alist_t *list, void* value, size_t size){
+    if(!list)
         return 0;
     //reached max length
-    if(l -> current_length == l -> max_length) {
-        REALLOC(l -> list, sizeof(void*) * (l -> max_length) * LIST_INCREMENT, return 0;);
-        REALLOC(l -> sizes, sizeof(size_t) * (l -> max_length) * LIST_INCREMENT, return 0;);
-        l -> max_length *= LIST_INCREMENT;
+    if(list -> current_length == list -> max_length) {
+        REALLOC(list -> list, sizeof(void*) * (list -> max_length) * LIST_INCREMENT, return 0;);
+        REALLOC(list -> sizes, sizeof(size_t) * (list -> max_length) * LIST_INCREMENT, return 0;);
+        list -> max_length *= LIST_INCREMENT;
     }
-    l -> list[l -> current_length] = value;
-    l -> sizes[l -> current_length] = size;
-    (l -> current_length)++;
+    list -> list[list -> current_length] = value;
+    list -> sizes[list -> current_length] = size;
+    (list -> current_length)++;
     return 1;
 }
 
@@ -46,18 +44,18 @@ int list_add(list_t *l, void* value, size_t size){
  * @param size Will contain the size of the object
  * @return The index-sm element of the list
  */
-void* list_get(list_t* l, size_t* size, int index){
-    if(!l)
+void* alist_get(alist_t* list, size_t* size, int index){
+    if(!list)
         return 0;
     if(size)
-        *size = l -> sizes[index];
-    return l -> list[index];
+        *size = list -> sizes[index];
+    return list -> list[index];
 }
 
 /**
  * @return The length of the list
  */
-size_t list_length(list_t* list){
+size_t alist_length(alist_t* list){
     if(!list)
         return 0;
     return list -> current_length;
@@ -69,7 +67,7 @@ size_t list_length(list_t* list){
  *      and returns true if the operation is completed successfully
  * @return true if all the operation were completed successfully
  */
-int list_for_each(list_t* list, int (*f) (void*, size_t*)){
+int alist_for_each(alist_t* list, int (*f) (void*, size_t*)){
     for(size_t i = 0; i < list -> current_length; i++){
         if(!f(list -> list[i], list -> sizes + i))
             return 0;
@@ -81,7 +79,7 @@ int list_for_each(list_t* list, int (*f) (void*, size_t*)){
  * @param size Will contain the size of the array
  * @return The list as array
  */
-void* list_as_array(list_t* list, size_t* size){
+void* alist_as_array(alist_t* list, size_t* size){
     if(size)
         *size = list -> current_length;
     return list -> list;
@@ -90,7 +88,7 @@ void* list_as_array(list_t* list, size_t* size){
 /**
  * Frees the list from the heap
  */
-void list_destroy(list_t* list) {
+void alist_destroy(alist_t* list) {
     if (list != NULL) {
         free(list -> list);
         free(list -> sizes);
