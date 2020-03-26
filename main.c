@@ -11,7 +11,7 @@ int main() {
 
     fplus_t* function; //will store the function from bool vector to N
 
-    int n_cycles = 1000000000;
+    int n_cycles = 1;
     for(int i = 0; i < n_cycles; i++) {
         NULL_CHECK(function = fplus_create_random(VARIABLES, MAX_VALUE));
         fplus_print(function);
