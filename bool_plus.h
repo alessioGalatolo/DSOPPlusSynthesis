@@ -90,6 +90,8 @@ bool sopp_form_of(sopp_t*, fplus_t*); //returns true if the given sopp form is v
 void sopp_print(sopp_t*); //prints the sopp
 void sopp_destroy(sopp_t*); //frees the memory of a sopp form
 sopp_t* sopp_synthesis(fplus_t*); //return a minimal sopp form for the given function
+sopp_t* sopp_synthesis_experimental(fplus_t*);
+bool sopp_equals(sopp_t*, sopp_t*, fplus_t*);
 
 /*
  * dsopp related functions
@@ -102,7 +104,7 @@ void dsopp_print(dsopp_t*); //prints the dsopp
  * fplus related functions
  */
 fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size); //creates a boolean plus function with the given parameters
-fplus_t* fplus_create_random(unsigned variables, int max_value); //creates a boolean plus function with random outputs
+fplus_t* fplus_create_random(unsigned variables, int max_value, unsigned non_zero_chance); //creates a boolean plus function with random outputs
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
 int fplus_value_at(fplus_t*, int); //returns the output of the function at the given index
 int* fplus_value_pointer(fplus_t* f, int index); //TODO:

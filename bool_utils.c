@@ -96,12 +96,14 @@ int norm1(const bool* b, unsigned variables){
  * Get the decimal representation of the given binary number
  * @param values an array of booleans
  * @param size of the array
+ * @return The decimal corresponding to the binary or -1 in case of error
  */
 int binary2decimal(const bool *values, unsigned variables) {
     int number = 0;
     for(int i = 0; i < variables; i++){
-        if(values[variables - i - 1] > 1)
+        if(values[variables - i - 1] > 1) {
             return -1;
+        }
         number += values[variables - i - 1] * (int) exp2(i);
     }
     return number;

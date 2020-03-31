@@ -134,6 +134,27 @@ bool sopp_form_of(sopp_t* sopp, fplus_t* fun){
     return result;
 }
 
+bool sopp_equals(sopp_t* s1, sopp_t* s2, fplus_t* f){
+    NULL_CHECK(s1);
+    NULL_CHECK(s2);
+    int k1 = 0;
+    int k2 = 0;
+    productp_t** a1 = alist_as_array(s1->array, NULL);
+    productp_t** a2 = alist_as_array(s2->array, NULL);
+    for(size_t i = 0; i < s1->current_length; i++){
+        k1 += a1[i]->coeff;
+    }for(size_t i = 0; i < s2->current_length; i++){
+        k2 += a2[i]->coeff;
+    }
+    if(k1 > k2)
+        printf("experimental is better\n");
+    if(k2 > k1)
+        printf("old is better\n");
+    return k1 == k2 && sopp_form_of(s1, f) && sopp_form_of(s2, f);
+
+}
+
+
 /*
  * rec-fun called by sopp_form_of
  *
@@ -191,17 +212,13 @@ void sopp_destroy(sopp_t* sopp){
         if(sopp -> table[i] != NULL)
             alist_destroy(sopp->table[i]);
     }
-    free(sopp -> table);
-    free(sopp);
+    FREE(sopp -> table);
+    FREE(sopp);
 }
 
-/**
- * Calculates a minimal sopp form for the given function
- * sopp form is minimal <=> the sum of its coefficients is minimal
- * @param f A fplus function
- * @return The minimal sopp form
- */
-sopp_t* sopp_synthesis(fplus_t* f){
+
+
+sopp_t* sopp_synthesis_experimental(fplus_t* f){
     sopp_t* sopp; //will store the minimal sopp form
     implicantp_t* implicants; //will store prime implicants
     bool go_on;
@@ -214,8 +231,11 @@ sopp_t* sopp_synthesis(fplus_t* f){
 
     essentialsp_t* e;
     do {
-        if((e = essential_implicants(f_copy, i_copy)) == NULL || e->points_size == 0)
+        if((e = essential_implicants(f_copy, i_copy)) == NULL)
             break;
+        if(e->points_size == 0){
+            essentials_destroy(e);
+        }
         for (int i = 0; i < e -> impl_size; i++) {
             int max = 0;
             for (int j = 0; j < e -> points_size; j++) {
@@ -239,7 +259,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
             for (int j = 0; j < size; j++) {
                 fplus_sub2value(f_copy, indexes[j], impls[i]->coeff);
             }
-            free(indexes);
+            FREE(indexes);
         }
 
         fplus_update_non_zeros(f_copy);
@@ -270,7 +290,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
                 min = max;
                 implicant_chosen = i;
             }
-            free(indexes);
+            FREE(indexes);
         }
         if(implicant_chosen == -1)
             break;
@@ -287,32 +307,142 @@ sopp_t* sopp_synthesis(fplus_t* f){
         int *indexes = binary2decimals(i_copy -> implicants[implicant_chosen], i_copy -> variables, &size);
         for (int j = 0; j < size; j++)
             fplus_sub2value(f_copy, indexes[j], min);
-        free(indexes);
+        FREE(indexes);
+
+//        implicantp_t *new_implicants = prime_implicants(f_copy);
+//        remove_implicant_duplicates_old(i_copy, new_implicants, f_copy);
+//        implicants_soft_destroy(new_implicants);
+        //new ??
+        int removed = 0;
+        int i = 0;
+        while(i < i_copy->size - removed){
+            indexes = binary2decimals(i_copy->implicants[i], f->variables, &size);
+            bool removable = true;
+            int j = 0;
+            while(removable && j < size){
+                removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
+                j++;
+            }
+            if(removable){
+                removed++;
+                FREE(i_copy->implicants[i]);
+                i_copy->implicants[i] = i_copy->implicants[i_copy->size - removed];
+            } else
+                i++;
+            FREE(indexes);
+        }
+
+        i_copy->size -= removed;
+    }
+
+    //clean up
+    implicants_destroy(implicants);
+    implicants_destroy(i_copy);
+    fplus_copy_destroy(f_copy);
+
+    return sopp;
+}
+
+/**
+ * Calculates a minimal sopp form for the given function
+ * sopp form is minimal <=> the sum of its coefficients is minimal
+ * @param f A fplus function
+ * @return The minimal sopp form
+ */
+sopp_t* sopp_synthesis(fplus_t* f){
+    sopp_t* sopp; //will store the minimal sopp form
+    implicantp_t* implicants; //will store prime implicants
+    bool go_on;
+
+    NULL_CHECK(sopp = sopp_create_wsize(f -> size));
+    NULL_CHECK(implicants = prime_implicants(f));
+
+    fplus_t* f_copy = fplus_copy(f);
+    implicantp_t* i_copy = implicants_copy(implicants);
+
+    essentialsp_t* e;
+    do {
+        if((e = essential_implicants(f_copy, i_copy)) == NULL)
+            break;
+        if(e->points_size == 0){
+            essentials_destroy(e);
+        }
+        for (int i = 0; i < e -> impl_size; i++) {
+            int max = 0;
+            for (int j = 0; j < e -> points_size; j++) {
+                if (product_of(e -> implicants[i]->product, e->points[j])) {
+                    int cur_value = fplus_value_of(f_copy , e->points[j]);
+                    if (cur_value > max)
+                        max = cur_value;
+                }
+            }
+            int old_coeff = e -> implicants[i] -> coeff;
+            e -> implicants[i] -> coeff = max;
+            sopp_add(sopp, e -> implicants[i]);
+            e -> implicants[i] -> coeff = old_coeff;
+        }
+
+        //for each implicant chosen update f values
+        productp_t** impls = alist_as_array(sopp->array, NULL);
+        for(size_t i = 0; i < sopp -> current_length; i++) {
+            int size;
+            int *indexes = binary2decimals(impls[i] ->product->product, impls[i] -> product -> variables, &size);
+            for (int j = 0; j < size; j++) {
+                fplus_sub2value(f_copy, indexes[j], impls[i]->coeff);
+            }
+            FREE(indexes);
+        }
+
+        fplus_update_non_zeros(f_copy);
+        implicantp_t *new_implicants = prime_implicants(f_copy);
+        go_on = remove_implicant_duplicates_old(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
+        //TODO: should exit only if no essential implicants
+        implicants_soft_destroy(new_implicants);
+
+        essentials_destroy(e);
+    }while(go_on);
+
+    while(i_copy -> size > 0) {
+        int min = INT_MAX;
+        int implicant_chosen = -1;
+
+        //select the implicant to add
+        for (int i = 0; i < i_copy->size; i++) {
+            int max = 0;
+            int size;
+            int *indexes = binary2decimals(i_copy->implicants[i], i_copy->variables, &size);
+            for (int j = 0; j < size; j++) {
+                int c_value = fplus_value_at(f_copy, indexes[j]);
+                if (c_value > 0 && c_value > max) {
+                    max = c_value;
+                }
+            }
+            if (max > 0 && max < min) {
+                min = max;
+                implicant_chosen = i;
+            }
+            FREE(indexes);
+        }
+        if(implicant_chosen == -1)
+            break;
+        productp_t* p = productp_create(i_copy -> implicants[implicant_chosen], i_copy -> variables, min);
+
+        //change the dashed into not_present
+        for(int k = 0; k < f -> variables; k++)
+            if(p -> product -> product[k] == dash)
+                p -> product -> product[k] = not_present;
+        sopp_add(sopp, p);
+        productp_destroy(p);
+
+        int size;
+        int *indexes = binary2decimals(i_copy -> implicants[implicant_chosen], i_copy -> variables, &size);
+        for (int j = 0; j < size; j++)
+            fplus_sub2value(f_copy, indexes[j], min);
+        FREE(indexes);
 
         implicantp_t *new_implicants = prime_implicants(f_copy);
-        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
+        remove_implicant_duplicates_old(i_copy, new_implicants, f_copy);
         implicants_soft_destroy(new_implicants);
-        //new ??
-//        int removed = 0;
-//        int i = 0;
-//        while(i < i_copy->size - removed){
-//            indexes = binary2decimals(i_copy->implicants[i], f->variables, &size);
-//            bool removable = true;
-//            int j = 0;
-//            while(removable && j < size){
-//                removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
-//                j++;
-//            }
-//            if(removable){
-//                removed++;
-//                free(i_copy->implicants[i]);
-//                i_copy->implicants[i] = i_copy->implicants[i_copy->size - removed];
-//            } else
-//                i++;
-//            free(indexes);
-//        }
-//
-//        i_copy->size -= removed;
     }
 
     //clean up
@@ -441,11 +571,13 @@ fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
 
 /**
  * Creates a boolean plus function with random outputs.
- * Each input has 50% chance of being non zero and its value is random
+ * Each non zero value has a random output between 1 and max_value
  * @param variables Number of variables taken by the function
+ * @param max_value Max value for the output of the function
+ * @param non_zero_chance The probability (as percentage) of having a non zero value as output
  * @return A pointer to the function
  */
-fplus_t* fplus_create_random(unsigned variables, int max_value){
+fplus_t* fplus_create_random(unsigned variables, int max_value, unsigned non_zero_chance){
     struct timespec spec;
     clock_gettime(CLOCK_REALTIME, &spec);
     srandom(spec.tv_nsec);
@@ -455,12 +587,12 @@ fplus_t* fplus_create_random(unsigned variables, int max_value){
     int non_zeros_index = 0;
 
     MALLOC(function, sizeof(fplus_t), ;);
-    MALLOC(function -> values, sizeof(int) * f_size, free(function));
-    MALLOC(function -> non_zeros, sizeof(bvector) * f_size, free(function -> values); free(function));
+    MALLOC(function -> values, sizeof(int) * f_size, FREE(function));
+    MALLOC(function -> non_zeros, sizeof(bvector) * f_size, FREE(function -> values); FREE(function));
 
     for(size_t i = 0; i < f_size; i++){
         bool is_non_zero = random() % 100;
-        if(is_non_zero < PROBABILITY_NON_ZERO_VALUE) {
+        if(is_non_zero < non_zero_chance) {
             function -> values[i] = (int) ((random()) % max_value) + 1;
             function -> non_zeros[non_zeros_index++] = decimal2binary(i, variables); //end of array
         }else
@@ -568,8 +700,8 @@ fplus_t* fplus_copy(fplus_t* f){
     f_copy -> size = f -> size;
     unsigned long values_size = 1;
     values_size = values_size << f -> variables;
-    MALLOC(f_copy -> values, sizeof(int) * values_size, free(f_copy););
-    MALLOC(f_copy -> non_zeros, sizeof(bool*) * f -> size, free(f_copy -> values); free(f_copy););
+    MALLOC(f_copy -> values, sizeof(int) * values_size, FREE(f_copy););
+    MALLOC(f_copy -> non_zeros, sizeof(bool*) * f -> size, FREE(f_copy -> values); FREE(f_copy););
     memcpy(f_copy -> values, f -> values, sizeof(int) * values_size);
     memcpy(f_copy -> non_zeros, f -> non_zeros, sizeof(bool*) * f -> size);
     return f_copy;
@@ -580,9 +712,9 @@ fplus_t* fplus_copy(fplus_t* f){
  * @param f A function created with the method fplus_copy
  */
 void fplus_copy_destroy(fplus_t* f){
-    free(f -> non_zeros);
-    free(f -> values);
-    free(f);
+    FREE(f -> non_zeros);
+    FREE(f -> values);
+    FREE(f);
 }
 
 /**
@@ -602,9 +734,8 @@ void fplus_print(fplus_t* f){
         }
         return;
     }
-    assert(f -> variables == 4);
-    int matrix[4][4];
 
+    int matrix[4][4];
     for(int i = 0; i < 4; i++){
         for(int j = 0; j < 4; j++){
             if(i < 2)
@@ -636,11 +767,11 @@ void fplus_print(fplus_t* f){
  */
 void fplus_destroy(fplus_t* f){
     for(int i = 0; i < f -> size; i++){
-        free(f -> non_zeros[i]);
+        FREE(f -> non_zeros[i]);
     }
-    free(f -> non_zeros);
-    free(f -> values);
-    free(f);
+    FREE(f -> non_zeros);
+    FREE(f -> values);
+    FREE(f);
 }
 
 
@@ -675,9 +806,9 @@ productp_t* productp_copy(productp_t* p){
  * @param p The product plus
  */
 void productp_destroy(productp_t *p) {
-    free(p -> product -> product);
-    free(p -> product);
-    free(p);
+    FREE(p -> product -> product);
+    FREE(p -> product);
+    FREE(p);
 }
 
 
@@ -705,7 +836,7 @@ implicantp_t* prime_implicants(fplus_t* f) {
             bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
             memset(taken, 0, sizeof(bool) * non_zeros_size);
 
-            alist_t *impl_found = alist_create();
+            alist_t *impl_found = alist_create(); //current list of implicants
 
             //join matching vectors
             for (size_t i = 0; i < non_zeros_size; i++) {
@@ -718,8 +849,8 @@ implicantp_t* prime_implicants(fplus_t* f) {
                     else if (norms[j] > current_elem_class + 1)
                         class_has_changed = true;
                     else {
-                        if(fplus_value_of(f, non_zeros[i]) == F_DONT_CARE_VALUE && fplus_value_of(f, non_zeros[j]) == F_DONT_CARE_VALUE){
-                            //if they both cover only don't care points
+                        if(!old_list_2free && fplus_value_of(f, non_zeros[i]) == F_DONT_CARE_VALUE && fplus_value_of(f, non_zeros[j]) == F_DONT_CARE_VALUE){
+                            //if they both cover don't care points
                             taken[i] = true;
                             taken[j] = true;
                         }else {
@@ -741,11 +872,11 @@ implicantp_t* prime_implicants(fplus_t* f) {
                     //only one cycle was made
                     MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
                     for (size_t i = 0; i < non_zeros_size; i++) {
-                        MALLOC(result[i], sizeof(bool) * f->variables, free(result);
-                                free(non_zeros));
+                        MALLOC(result[i], sizeof(bool) * f->variables, FREE(result);
+                                FREE(non_zeros));
                         memcpy(result[i], non_zeros[i], sizeof(bool) * f->variables);
                     }
-                    free(non_zeros);
+                    FREE(non_zeros);
                 } else {
                     MALLOC(result, sizeof(bvector) * non_zeros_size, ;);
                     memcpy(result, non_zeros, sizeof(bvector) * non_zeros_size);
@@ -772,7 +903,7 @@ implicantp_t* prime_implicants(fplus_t* f) {
                 alist_destroy(old_list_2free);
             } else
                 //if first cycle
-                free(non_zeros);
+                FREE(non_zeros);
 
             old_list_2free = impl_found;
 
@@ -785,7 +916,7 @@ implicantp_t* prime_implicants(fplus_t* f) {
                 for (size_t j = i + 1; j < non_zeros_size - duplicates_found; j++) {
                     if (bvector_equals(non_zeros[i], non_zeros[j], f->variables)) {
                         duplicates_found++;
-                        free(non_zeros[j]);
+                        FREE(non_zeros[j]);
                         non_zeros[j] = non_zeros[non_zeros_size - duplicates_found];
                         non_zeros[non_zeros_size - duplicates_found] = NULL;
                         j--; //recheck current element
@@ -793,7 +924,6 @@ implicantp_t* prime_implicants(fplus_t* f) {
                 }
             }
             non_zeros_size -= duplicates_found;
-
 
         }
 
@@ -803,7 +933,7 @@ implicantp_t* prime_implicants(fplus_t* f) {
             for (int j = i + 1; j < result_size - duplicates_found; j++) {
                 if (bvector_equals(result[i], result[j], f->variables)) {
                     duplicates_found++;
-                    free(result[j]);
+                    FREE(result[j]);
                     result[j] = result[result_size - duplicates_found];
                     result[result_size - duplicates_found] = NULL;
                     j--;
@@ -812,12 +942,12 @@ implicantp_t* prime_implicants(fplus_t* f) {
         }
         result_size -= duplicates_found;
     } else
-        free(non_zeros);
+        FREE(non_zeros);
 
     //create implicants object
     REALLOC(result, sizeof(bvector) * result_size, ;);
     implicantp_t* implicants;
-    MALLOC(implicants, sizeof(implicantp_t), free(result)); //TODO: should clean more stuff
+    MALLOC(implicants, sizeof(implicantp_t), FREE(result)); //TODO: should clean more stuff
     implicants -> implicants = result;
     implicants -> size = result_size;
     implicants -> variables = f -> variables;
@@ -887,7 +1017,7 @@ void my_quicksort(bvector* arr, int low, int high, unsigned variables, int* norm
  * @return always true
  */
 int free_f(void* p, size_t* s){
-    free(p);
+    FREE(p);
     *s = 0;
     return 1;
 }
@@ -908,12 +1038,12 @@ bvector joinable_vectors(const bool* v1, const bool* v2, unsigned variables){
         if(v1[i] == v2[i]){
             join[i] = v1[i];
         }else if(v1[i] == dash || v2[i] == dash) {
-            free(join);
+            FREE(join);
             return NULL;
         }else{
             counter++;
             if(counter > 1) {
-                free(join);
+                FREE(join);
                 return NULL; //are not joinable
             }
             join[i] = dash;
@@ -931,7 +1061,7 @@ implicantp_t* implicants_copy(implicantp_t* impl){
     MALLOC(i_copy, sizeof(implicantp_t),;);
     i_copy -> size = impl -> size;
     i_copy -> variables = impl -> variables;
-    MALLOC(i_copy -> implicants, sizeof(bool*) * impl -> size, free(i_copy));
+    MALLOC(i_copy -> implicants, sizeof(bool*) * impl -> size, FREE(i_copy));
     for(int i = 0; i < impl -> size; i++){
         MALLOC(i_copy -> implicants[i], sizeof(bool) * impl -> variables, ;);//TODO: improve clean
         memcpy(i_copy -> implicants[i], impl -> implicants[i], sizeof(bool) * impl -> variables);
@@ -941,7 +1071,7 @@ implicantp_t* implicants_copy(implicantp_t* impl){
 
 /*
  * An attempt to optimize below function.
- * Although not very successful as new function doesn't behave
+ * Although not very successful as the functions don't behave
  * the same.
  */
 bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
@@ -966,7 +1096,7 @@ bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, 
             joint_array[joint_index] = source->implicants[source_index];
             source_index++;
         }else if(v1 == v2 && bvector_equals(source->implicants[source_index], to_remove->implicants[to_remove_index], f->variables)) {
-            free(source->implicants[source_index]);
+            FREE(source->implicants[source_index]);
             source_index++;
             joint_array[joint_index] = to_remove->implicants[to_remove_index];
             to_remove_index++;
@@ -992,11 +1122,11 @@ bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, 
         }
         if(removable){
             removed++;
-            free(joint_array[i]);
+            FREE(joint_array[i]);
             joint_array[i] = joint_array[joint_index - removed];
         } else
             i++;
-        free(indexes);
+        FREE(indexes);
     }
 
     bool return_value = removed > 0 || joint_index < source->size + to_remove->size;
@@ -1035,20 +1165,20 @@ bool remove_implicant_duplicates_old(implicantp_t* source, implicantp_t* to_remo
             //if all non_zero points of s are covered by r
             if(r_cover_s(r_indexes, r_size, s_indexes, s_size, f, &non_zero_values)){
                 removed++;
-                free(source->implicants[j]);
+                FREE(source->implicants[j]);
                 source -> implicants[j] = source -> implicants[source->size - removed];
             }else
                 j++;
-            free(s_indexes);
+            FREE(s_indexes);
         }
-        free(r_indexes);
+        FREE(r_indexes);
     }
     source -> size -= removed;
 
     //add all implicants in to_remove to source
     REALLOC(source -> implicants, sizeof(bvector) * (source -> size + to_remove -> size), ;);
-    for(int i = source -> size; i < source -> size + to_remove -> size; i++){
-        source -> implicants[i + source -> size] = to_remove -> implicants[i];
+    for(int i = source -> size; i < source->size + to_remove->size; i++){
+        source->implicants[i] = to_remove->implicants[i - source->size];
     }
     source -> size += to_remove -> size;
     if(source -> size == to_remove -> size) {
@@ -1058,14 +1188,13 @@ bool remove_implicant_duplicates_old(implicantp_t* source, implicantp_t* to_remo
 }
 
 /**
- * Returns true if all non_zero points of s are covered by r
  * @param r_indexes The points of r as decimal
  * @param r_size The number of points of r
  * @param s_indexes The points of s as decimal
  * @param s_size The number of points of s
  * @param f The function which output to check
  * @param non_zero_values Will store the number of non-zero values found
- * @return
+ * @return true if all non_zero points of s are covered by r
  */
 bool r_cover_s(const int *r_indexes, int r_size, int *s_indexes, int s_size, fplus_t *f, int* non_zero_values) {
     int i = 0; //index of r_indexes
@@ -1104,8 +1233,8 @@ void implicants_print(implicantp_t* impl){
  * used by each element of impl->implicants
  */
 void implicants_soft_destroy(implicantp_t* impl){
-    free(impl -> implicants);
-    free(impl);
+    FREE(impl -> implicants);
+    FREE(impl);
 }
 
 /**
@@ -1114,10 +1243,10 @@ void implicants_soft_destroy(implicantp_t* impl){
  */
 void implicants_destroy(implicantp_t* impl){
     for(int i = 0; i < impl -> size; i++){
-        free(impl -> implicants[i]);
+        FREE(impl -> implicants[i]);
     }
-    free(impl -> implicants);
-    free(impl);
+    FREE(impl -> implicants);
+    FREE(impl);
 }
 
 
@@ -1147,7 +1276,7 @@ essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
         for(int j = 0; j < size; j++){
             alist_add(points[indexes[j]], implicants->implicants[i], sizeof(bvector));
         }
-        free(indexes);
+        FREE(indexes);
     }
 
     //store points and implicants in array
@@ -1164,18 +1293,22 @@ essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
         }
     }
 
+    essentialsp_t* e;
+
+    productp_t** final_implicants;
     //if no essential points are found
     if(e_index == 0) {
-        free(essential_points);
-        essential_points = NULL;
-    } else
+        FREE(essential_points);
+        e = NULL;
+    } else {
+        MALLOC(e, sizeof(essentialsp_t), FREE(essential_points););
         REALLOC(essential_points, sizeof(bvector) * e_index, ;);
+        final_implicants = implicants2sop(essential_implicants, e_index, f->variables, &e->impl_size);
 
-    essentialsp_t* e;
-    MALLOC(e, sizeof(essentialsp_t), free(essential_points););
-    e -> implicants = implicants2sop(essential_implicants, e_index, f -> variables, &e -> impl_size);
-    e -> points = essential_points;
-    e -> points_size = e_index;
+        e->implicants = final_implicants;
+        e->points = essential_points;
+        e->points_size = e_index;
+    }
 
     for(size_t i = 0; i < f_size; i++) {
         alist_destroy(points[i]);
@@ -1264,7 +1397,7 @@ void essentials_print(essentialsp_t* e, unsigned variables){
 void essentials_destroy(essentialsp_t* e){
     for(int i = 0; i < e -> impl_size; i++)
         productp_destroy(e -> implicants[i]);
-    free(e -> implicants);
-    free(e -> points);
-    free(e);
+    FREE(e -> implicants);
+    FREE(e -> points);
+    FREE(e);
 }
