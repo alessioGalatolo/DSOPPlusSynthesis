@@ -34,7 +34,7 @@
     if((s) < 0){\
         fprintf(stderr, "Error: tried to realloc a negative value\n");\
         clean;\
-    } else if(s == 0){\
+    } else if((s) == 0){\
         free(x);\
         (x) = NULL;\
     } else {\

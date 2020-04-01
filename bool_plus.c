@@ -309,30 +309,30 @@ sopp_t* sopp_synthesis_experimental(fplus_t* f){
             fplus_sub2value(f_copy, indexes[j], min);
         FREE(indexes);
 
-//        implicantp_t *new_implicants = prime_implicants(f_copy);
-//        remove_implicant_duplicates_old(i_copy, new_implicants, f_copy);
-//        implicants_soft_destroy(new_implicants);
-        //new ??
-        int removed = 0;
-        int i = 0;
-        while(i < i_copy->size - removed){
-            indexes = binary2decimals(i_copy->implicants[i], f->variables, &size);
-            bool removable = true;
-            int j = 0;
-            while(removable && j < size){
-                removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
-                j++;
-            }
-            if(removable){
-                removed++;
-                FREE(i_copy->implicants[i]);
-                i_copy->implicants[i] = i_copy->implicants[i_copy->size - removed];
-            } else
-                i++;
-            FREE(indexes);
-        }
-
-        i_copy->size -= removed;
+        implicantp_t *new_implicants = prime_implicants(f_copy);
+        remove_implicant_duplicates(i_copy, new_implicants, f_copy);
+        implicants_soft_destroy(new_implicants);
+//        //new ??
+//        int removed = 0;
+//        int i = 0;
+//        while(i < i_copy->size - removed){
+//            indexes = binary2decimals(i_copy->implicants[i], f->variables, &size);
+//            bool removable = true;
+//            int j = 0;
+//            while(removable && j < size){
+//                removable = fplus_value_at(f, indexes[j]) == F_DONT_CARE_VALUE;
+//                j++;
+//            }
+//            if(removable){
+//                removed++;
+//                FREE(i_copy->implicants[i]);
+//                i_copy->implicants[i] = i_copy->implicants[i_copy->size - removed];
+//            } else
+//                i++;
+//            FREE(indexes);
+//        }
+//
+//        i_copy->size -= removed;
     }
 
     //clean up

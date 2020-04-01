@@ -5,6 +5,6 @@ set(CMAKE_C_STANDARD 99)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -g")
 
 
-add_executable(SOP_synthesis main.c bool_plus.h bool_plus.c utils.h arraylist.c arraylist.h bool_utils.c bool_utils.h linkedlist.c linkedlist.h)
+add_executable(SOP_synthesis test.c bool_plus.h bool_plus.c utils.h arraylist.c arraylist.h bool_utils.c bool_utils.h linkedlist.c linkedlist.h)
 
 target_link_libraries(SOP_synthesis m)
