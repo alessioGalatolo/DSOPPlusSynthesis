@@ -3,8 +3,8 @@
  * and some basic operations
  */
 
-#ifndef SOP_SYNTHESIS_BOOL_UTILS_H
-#define SOP_SYNTHESIS_BOOL_UTILS_H
+#ifndef DSOPP_SYNTHESIS_BOOL_UTILS_H
+#define DSOPP_SYNTHESIS_BOOL_UTILS_H
 
 #define false 0
 #define true 1
@@ -31,6 +31,13 @@ typedef struct{
     int size;
 }sop_t;
 
+//stores a list of implicants
+typedef struct {
+    bool** bvectors; //array of implicants
+    int size; //size of above array
+    unsigned variables;
+}implicants_t;
+
 /* Utility functions */
 int norm1(const bool*, unsigned variables); //returns the norm 1 of the vector
 int binary2decimal(const bool *values, unsigned variables); //returns the decimal of the given binary number
@@ -45,4 +52,4 @@ bool_f* f_create(bool[], int variables); //creates a boolean function given its 
 bool_product* product_create(bool product[], unsigned variables);
 bool product_of(bool_product*, const bool*); //returns the value of the product with the given values
 
-#endif //SOP_SYNTHESIS_BOOL_UTILS_H
+#endif //DSOPP_SYNTHESIS_BOOL_UTILS_H

@@ -6,13 +6,13 @@ executable_path="./cmake-build-debug/DSOPP_synthesis"
 test_result_filename="test_tmp_results"
 TIMEFORMAT="%5R"
 n_tests=100
-n_variables=8
+n_variables=6
 program_out="synthesis_weights.out"
 program_e_out="synthesis_e_weights.out"
 
 #check arguments
 if (($# == 0)); then
-  echo Usage: "$0" test_type "[n_variables]" "[n_tests]"
+  echo Usage: bash "$0" test_type "[n_variables]" "[n_tests]"
   echo Test types aviailable: sopp dsopp
   exit
 else
@@ -29,6 +29,11 @@ fi
 if ! [ -f $executable_path ]; then
   if [ $# -gt 0 ] && [ -f "$1" ]; then
     executable_path=$1
+    if ! (($# > 1)); then
+      echo Usage: bash "$0" executable_path test_type "[n_variables]" "[n_tests]"
+      echo Test types aviailable: sopp dsopp
+      exit
+    fi
     test_type=$2
     if (($# > 2)); then
       n_variables=$3
@@ -38,7 +43,7 @@ if ! [ -f $executable_path ]; then
     fi
   else
     echo executable was not found in the default path, please use:
-    echo "$0" executable_path test_type "[n_variables]" "[n_tests]"
+    echo bash "$0" executable_path test_type "[n_variables]" "[n_tests]"
     exit
   fi
 fi
@@ -47,8 +52,8 @@ fi
 echo Comparing performance and output of "$test_type" synthesis with "$n_variables" variables over "$n_tests" tests
 
 #execute program and store time of execution
-{ time "$executable_path" "$test_type""_time" "$n_variables" "$n_tests" &> $program_out; } >> $test_result_filename"$test_type" 2>&1
-{ time "$executable_path" "$test_type""_e_time" "$n_variables" "$n_tests" &> $program_e_out; } >> $test_result_filename"$test_type""_e" 2>&1
+{ time "$executable_path" "$test_type""_time" "$n_variables" "$n_tests" > $program_out 2> execution_errors; } 2>> $test_result_filename"$test_type"
+{ time "$executable_path" "$test_type""_e_time" "$n_variables" "$n_tests" > $program_e_out 2> execution_errors_e; } 2>> $test_result_filename"$test_type""_e"
 
 #retrieve time of execution
 sec_standard=$(cut -d, -f1 $test_result_filename"$test_type")
@@ -76,6 +81,7 @@ while IFS= read -r line; do
   count_e=$((count_e+1))
 done < "$program_e_out"
 
+#print weights
 echo average sum of weight in standard synthesis is $((standard_weights / count))
 echo average sum of weight in experimental synthesis is $((experimental_weights / count_e))
 

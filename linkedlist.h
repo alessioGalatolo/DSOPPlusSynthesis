@@ -5,8 +5,8 @@
  * products plus list in the context of dsopp synthesis
  */
 
-#ifndef SOP_SYNTHESIS_LINKEDLIST_H
-#define SOP_SYNTHESIS_LINKEDLIST_H
+#ifndef DSOPP_SYNTHESIS_LINKEDLIST_H
+#define DSOPP_SYNTHESIS_LINKEDLIST_H
 
 #include <stddef.h>
 #include "bool_plus.h"
@@ -31,4 +31,4 @@ productp_t* llist_max_product(llist_t *list, int *value, fplus_t *f); //extract 
 size_t llist_length(llist_t*); //length of the list
 void llist_destroy(llist_t*); //frees the memory
 
-#endif //SOP_SYNTHESIS_LINKEDLIST_H
+#endif //DSOPP_SYNTHESIS_LINKEDLIST_H

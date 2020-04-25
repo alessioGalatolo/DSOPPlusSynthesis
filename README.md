@@ -1,4 +1,4 @@
-#DSOPP synthesis
+# DSOP plus synthesis
 This repo provides a library for the algebraic forms defined in [Fun at a Department Store](https://www.researchgate.net/publication/221276871_Fun_at_a_Department_Store_Data_Mining_Meets_Switching_Theory)
 
 

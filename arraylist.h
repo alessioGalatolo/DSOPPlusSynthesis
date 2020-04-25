@@ -1,9 +1,9 @@
 /**
- * Library for a generic LIFO list
+ * Library for a generic list
  */
 
-#ifndef SOP_SYNTHESIS_ARRAYLIST_H
-#define SOP_SYNTHESIS_ARRAYLIST_H
+#ifndef DSOPP_SYNTHESIS_ARRAYLIST_H
+#define DSOPP_SYNTHESIS_ARRAYLIST_H
 
 #include <stddef.h>
 #include "bool_utils.h"
@@ -23,4 +23,4 @@ void* alist_get(alist_t*, size_t*, int index); //gets the element at index
 void* alist_as_array(alist_t*, size_t* size); //returns the list as an array
 size_t alist_length(alist_t*); //returns the list length
 void alist_destroy(alist_t*); //free the memory used by the list
-#endif //SOP_SYNTHESIS_ARRAYLIST_H
+#endif //DSOPP_SYNTHESIS_ARRAYLIST_H

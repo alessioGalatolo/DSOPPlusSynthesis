@@ -1,6 +1,6 @@
 //common utilities
-#ifndef SOP_SYNTHESIS_UTILS_H
-#define SOP_SYNTHESIS_UTILS_H
+#ifndef DSOPP_SYNTHESIS_UTILS_H
+#define DSOPP_SYNTHESIS_UTILS_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,4 +58,4 @@
     }
 
 
-#endif //SOP_SYNTHESIS_UTILS_H
+#endif //DSOPP_SYNTHESIS_UTILS_H

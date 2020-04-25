@@ -10,8 +10,8 @@
  * It also provides basic operation extended to these forms
  */
 
-#ifndef SOP_SYNTHESIS_BOOL_PLUS_H
-#define SOP_SYNTHESIS_BOOL_PLUS_H
+#ifndef DSOPP_SYNTHESIS_BOOL_PLUS_H
+#define DSOPP_SYNTHESIS_BOOL_PLUS_H
 
 //value for don't care point in f
 #define F_DONT_CARE_VALUE (-1)
@@ -24,6 +24,7 @@
 #define GOOD_LOAD 0.5
 
 #include "arraylist.h"
+#include "bool_plus.h"
 
 //a boolean product with a coefficient
 typedef struct{
@@ -38,13 +39,6 @@ typedef struct {
     bool** non_zeros; //array with the index of non-zero values written as binary numbers
     size_t nz_size; //size of above array
 }fplus_t;
-
-//stores a list of implicants
-typedef struct {
-    bool** bvectors; //array of implicants
-    int size; //size of above array
-    unsigned variables;
-}implicantp_t;
 
 //stores a list of essential prime implicants and their essential points
 typedef struct {
@@ -127,20 +121,20 @@ void productp_destroy(productp_t *p); //frees the memory of a product plus
 /*
  * implicants related functions
  */
-implicantp_t* prime_implicants(fplus_t*); //returns the prime implicants of the given bool plus function
-implicantp_t* implicants_copy(implicantp_t*); //returns a copy of the given implicants
+implicants_t* prime_implicants(fplus_t*); //returns the prime implicants of the given bool plus function
+implicants_t* implicants_copy(implicants_t*); //returns a copy of the given implicants
 //merges the two implicants list and removes duplicates
-bool remove_implicant_duplicates(implicantp_t *source, implicantp_t *to_remove, fplus_t *f);
-void implicants_print(implicantp_t*); //prints the list of implicants
-void implicants_soft_destroy(implicantp_t* impl); //destroy implicants objects leaving values
-void implicants_destroy(implicantp_t*); //frees the heap taken by the above function
+bool remove_implicant_duplicates(implicants_t *source, implicants_t *to_remove, fplus_t *f);
+void implicants_print(implicants_t*); //prints the list of implicants
+void implicants_soft_destroy(implicants_t* impl); //destroy implicants objects leaving values
+void implicants_destroy(implicants_t*); //frees the heap taken by the above function
 
 /*
  * essential related functions
  */
-essentialsp_t* essential_implicants(fplus_t*, implicantp_t*); //returns the essential prime implicants
+essentialsp_t* essential_implicants(fplus_t*, implicants_t*); //returns the essential prime implicants
 void essentials_print(essentialsp_t*, unsigned); //prints the implicants and the points
 void essentials_destroy(essentialsp_t*); //frees the heap taken by the above function
 
 
-#endif //SOP_SYNTHESIS_BOOL_PLUS_H
+#endif //DSOPP_SYNTHESIS_BOOL_PLUS_H

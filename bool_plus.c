@@ -1,10 +1,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <assert.h>
 #include <math.h>
 #include <limits.h>
-#include "bool_plus.h"
 #include "utils.h"
 #include "linkedlist.h"
 
@@ -205,14 +203,14 @@ void sopp_destroy(sopp_t* sopp){
  */
 sopp_t* sopp_synthesis(fplus_t* f){
     sopp_t* sopp; //will store the minimal sopp form
-    implicantp_t* implicants; //will store prime implicants
+    implicants_t* implicants; //will store prime implicants
     bool go_on;
 
     NULL_CHECK(sopp = sopp_create_wsize(f -> nz_size));
     NULL_CHECK(implicants = prime_implicants(f));
 
     fplus_t* f_copy = fplus_copy(f);
-    implicantp_t* i_copy = implicants_copy(implicants);
+    implicants_t* i_copy = implicants_copy(implicants);
 
     essentialsp_t* e;
     do {
@@ -220,7 +218,9 @@ sopp_t* sopp_synthesis(fplus_t* f){
             break;
         if(e->points_size == 0){
             essentials_destroy(e);
+            break;
         }
+        //add impicants to sopp form with max output value as coefficient
         for (int i = 0; i < e -> impl_size; i++) {
             int max = 0;
             for (int j = 0; j < e -> points_size; j++) {
@@ -248,7 +248,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
         }
 
         fplus_update_non_zeros(f_copy);
-        implicantp_t *new_implicants = prime_implicants(f_copy);
+        implicants_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
         //TODO: better exit only if no essential implicants
         implicants_soft_destroy(new_implicants);
@@ -294,7 +294,7 @@ sopp_t* sopp_synthesis(fplus_t* f){
             fplus_sub2value_sopp(f_copy, indexes[j], min);
         FREE(indexes);
 
-        implicantp_t *new_implicants = prime_implicants(f_copy);
+        implicants_t *new_implicants = prime_implicants(f_copy);
         remove_implicant_duplicates(i_copy, new_implicants, f_copy);
         implicants_soft_destroy(new_implicants);
     }
@@ -316,14 +316,14 @@ sopp_t* sopp_synthesis(fplus_t* f){
  */
 sopp_t* sopp_synthesis_experimental(fplus_t* f){
     sopp_t* sopp; //will store the minimal sopp form
-    implicantp_t* implicants; //will store prime implicants
+    implicants_t* implicants; //will store prime implicants
     bool go_on;
 
     NULL_CHECK(sopp = sopp_create_wsize(f -> nz_size));
     NULL_CHECK(implicants = prime_implicants(f));
 
     fplus_t* f_copy = fplus_copy(f);
-    implicantp_t* i_copy = implicants_copy(implicants);
+    implicants_t* i_copy = implicants_copy(implicants);
 
     essentialsp_t* e;
     do {
@@ -359,7 +359,7 @@ sopp_t* sopp_synthesis_experimental(fplus_t* f){
         }
 
         fplus_update_non_zeros(f_copy);
-        implicantp_t *new_implicants = prime_implicants(f_copy);
+        implicants_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
         implicants_soft_destroy(new_implicants);
 
@@ -850,7 +850,7 @@ void productp_destroy(productp_t *p) {
  * @param f
  * @return
  */
-implicantp_t* prime_implicants(fplus_t* f) {
+implicants_t* prime_implicants(fplus_t* f) {
     size_t non_zeros_size = f->nz_size;
     bvector *result = NULL; //will store prime implicants
     size_t result_size = 0; //will store number of prime implicants
@@ -978,8 +978,8 @@ implicantp_t* prime_implicants(fplus_t* f) {
 
     //create implicants object
     REALLOC(result, sizeof(bvector) * result_size, ;);
-    implicantp_t* implicants;
-    MALLOC(implicants, sizeof(implicantp_t), FREE(result)); //TODO: should clean more stuff
+    implicants_t* implicants;
+    MALLOC(implicants, sizeof(implicants_t), FREE(result)); //TODO: should clean more stuff
     implicants -> bvectors = result;
     implicants -> size = result_size;
     implicants -> variables = f -> variables;
@@ -1088,9 +1088,9 @@ bvector joinable_vectors(const bool* v1, const bool* v2, unsigned variables){
  * Creates a copy of the given implicant.
  * @return copy of the implicants passed as parameters
  */
-implicantp_t* implicants_copy(implicantp_t* impl){
-    implicantp_t* i_copy;
-    MALLOC(i_copy, sizeof(implicantp_t),;);
+implicants_t* implicants_copy(implicants_t* impl){
+    implicants_t* i_copy;
+    MALLOC(i_copy, sizeof(implicants_t), ;);
     i_copy->size = impl->size;
     i_copy->variables = impl->variables;
     if(impl->size == 0)
@@ -1112,7 +1112,7 @@ implicantp_t* implicants_copy(implicantp_t* impl){
  * @param f The boolean plus function
  * @return true if at least an implicant in source has been removed
  */
-bool remove_implicant_duplicates(implicantp_t* source, implicantp_t* to_remove, fplus_t* f){
+bool remove_implicant_duplicates(implicants_t* source, implicants_t* to_remove, fplus_t* f){
     int removed = 0; //stores the number of removed implicants from source
     int non_zero_values = 0; //stores the number of non zero values encountered. if = 0 => no need to go on
 
@@ -1182,7 +1182,7 @@ bool r_cover_s(const int *r_indexes, int r_size, int *s_indexes, int s_size, fpl
 /**
  * Prints the implicants
  */
-void implicants_print(implicantp_t* impl){
+void implicants_print(implicants_t* impl){
     printf("Implicants: \n");
     for(int i = 0; i < impl -> size; i++){
         for(int j = 0; j < impl -> variables; j++){
@@ -1200,7 +1200,7 @@ void implicants_print(implicantp_t* impl){
  * Frees the memory used by an implicant leaving the memory
  * used by each element of impl->implicants
  */
-void implicants_soft_destroy(implicantp_t* impl){
+void implicants_soft_destroy(implicants_t* impl){
     FREE(impl -> bvectors);
     FREE(impl);
 }
@@ -1209,7 +1209,7 @@ void implicants_soft_destroy(implicantp_t* impl){
  * Frees the memory used by implicants plus
  * @param impl The implicants to free
  */
-void implicants_destroy(implicantp_t* impl){
+void implicants_destroy(implicants_t* impl){
     for(int i = 0; i < impl -> size; i++){
         FREE(impl -> bvectors[i]);
     }
@@ -1223,7 +1223,7 @@ void implicants_destroy(implicantp_t* impl){
  * !!!Exponential in space!!!
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
-essentialsp_t* essential_implicants(fplus_t* f, implicantp_t* implicants){
+essentialsp_t* essential_implicants(fplus_t* f, implicants_t* implicants){
     unsigned long f_size = 1;
     f_size = f_size << (f -> variables); //TODO: exp size unnecessary as only non_zero points are needed
     alist_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
