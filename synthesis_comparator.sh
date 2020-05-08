@@ -9,6 +9,7 @@ n_tests=100
 n_variables=6
 program_out="synthesis_weights.out"
 program_e_out="synthesis_e_weights.out"
+INT_MAX=2147483647
 
 #check arguments
 if (($# == 0)); then
@@ -67,23 +68,45 @@ echo experimental runtime is $((sec_experimental * 1000 + msec_experimental)) ms
 
 #retrieve weights of standard
 standard_weights=0
+standard_max=0
+standard_min=$INT_MAX
 count=0
 while IFS= read -r line; do
   standard_weights=$((standard_weights + line))
+  if (( line > standard_max )); then
+    standard_max=$line
+  fi
+  if (( line < standard_min )); then
+    standard_min=$line
+  fi
   count=$((count+1))
 done < "$program_out"
 
+#print weights
+standard_average=$(bc <<< "scale=2; $standard_weights / $count")
+echo average sum of weights in standard synthesis is "$standard_average"
+echo max weight in standard synthesis is "$standard_max" while min is "$standard_min"
+
 #retrieve weights of experimental
 experimental_weights=0
+experimental_max=0
+experimental_min=$INT_MAX
 count_e=0
 while IFS= read -r line; do
   experimental_weights=$((experimental_weights + line))
+  if (( line > experimental_max )); then
+    experimental_max=$line
+  fi
+  if (( line < experimental_min )); then
+    experimental_min=$line
+  fi
   count_e=$((count_e+1))
 done < "$program_e_out"
 
 #print weights
-echo average sum of weight in standard synthesis is $((standard_weights / count))
-echo average sum of weight in experimental synthesis is $((experimental_weights / count_e))
+experimental_average=$(bc <<< "scale=2; $experimental_weights / $count_e")
+echo average sum of weights in experimental synthesis is "$experimental_average"
+echo max weight in experimental synthesis is "$experimental_max" while min is "$experimental_min"
 
 #remove tmp files
 rm $test_result_filename*

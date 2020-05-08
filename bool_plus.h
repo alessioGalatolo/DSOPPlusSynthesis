@@ -24,6 +24,7 @@
 #define GOOD_LOAD 0.5
 
 #include "arraylist.h"
+#include "bool_utils.h"
 #include "bool_plus.h"
 
 //a boolean product with a coefficient
@@ -88,7 +89,8 @@ void dsopp_print(dsopp_t*); //prints the dsopp
  */
 //creates a boolean plus function with the given parameters
 fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size);
-
+fplus_t* fplus_create_empty(unsigned variables); //creates an f with all don't care values
+void fplus_add_output(fplus_t*, int index, int value); //use to build from an empty function
 //creates a boolean plus function with random outputs
 fplus_t* fplus_create_random(unsigned variables, int max_value, unsigned non_zero_chance);
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input

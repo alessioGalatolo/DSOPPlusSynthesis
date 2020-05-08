@@ -55,7 +55,9 @@ bool sopp_add(sopp_t* sopp, productp_t* p){
     unsigned long hashcode = product_hashcode(p) % sopp -> table_size;
 
     if((double) (sopp -> current_length + 1) / sopp -> table_size > GOOD_LOAD)
-        fprintf(stdout, "Warning: sopp table is exceeding good load, current size is %ld while max size is %ld\n", sopp -> current_length, sopp -> table_size);
+        fprintf(stdout,
+                "Warning: sopp table is exceeding good load, current size is %ld while max size is %ld\n",
+                sopp -> current_length, sopp -> table_size);
 
     productp_t* product = productp_copy(p);
 
@@ -293,7 +295,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
         for (int j = 0; j < size; j++)
             fplus_sub2value_sopp(f_copy, indexes[j], min);
         FREE(indexes);
-
         implicants_t *new_implicants = prime_implicants(f_copy);
         remove_implicant_duplicates(i_copy, new_implicants, f_copy);
         implicants_soft_destroy(new_implicants);
@@ -599,6 +600,32 @@ fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
     function -> non_zeros = non_zeros;
     function -> nz_size = size;
     return function;
+}
+
+fplus_t* fplus_create_empty(unsigned variables){
+    fplus_t* function;
+    unsigned long f_size = 1;
+    f_size = f_size << variables;
+
+    MALLOC(function, sizeof(fplus_t), ;);
+    MALLOC(function -> values, sizeof(int) * f_size, FREE(function));
+    MALLOC(function -> non_zeros, sizeof(bvector) * f_size, FREE(function -> values); FREE(function));
+
+    for(size_t i = 0; i < f_size; i++){
+        function -> values[i] = F_DONT_CARE_VALUE;
+        function -> non_zeros[i] = decimal2binary(i, variables); //end of array
+    }
+    function -> variables = variables;
+    function -> nz_size = f_size; //end of array
+    return function;
+}
+
+void fplus_add_output(fplus_t* f, int index, int value){
+    if(value == 0){
+        //TODO
+    }else{
+        f->values[index] = value;
+    }
 }
 
 /**

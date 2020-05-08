@@ -4,7 +4,7 @@ This repo provides a library for the algebraic forms defined in [Fun at a Depart
 
 ## Building
 
-This project requires a C99 compiler, cmake.
+This project requires a C99 compiler, make, cmake.
 
 To build this project, run:
 

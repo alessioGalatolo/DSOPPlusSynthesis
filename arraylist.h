@@ -6,7 +6,6 @@
 #define DSOPP_SYNTHESIS_ARRAYLIST_H
 
 #include <stddef.h>
-#include "bool_utils.h"
 
 typedef struct _list{
     void** list;
