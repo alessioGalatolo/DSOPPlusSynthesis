@@ -8,8 +8,8 @@
 #include <stddef.h>
 
 typedef struct _list{
-    void** list;
-    size_t* sizes;
+    void** list; //array of objects
+    size_t* sizes; //array of the sizes of the objects
     size_t current_length;
     size_t max_length;
 }alist_t;

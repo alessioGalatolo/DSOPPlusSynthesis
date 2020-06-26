@@ -110,14 +110,15 @@ int binary2decimal(const bool *values, unsigned variables) {
 }
 
 /**
- * Given
- * Note: array will be in descending order
- * @param values
- * @param variables
- * @param return_size
- * @return
+ * Given a boolean vector with the special value '-' (ex: 0 0 1 -)
+ * calculates the decimal values of all the possible vectors (ex: 0 0 1 0, 0 0 1 1)
+ * @param values the boolean vector
+ * @param variables length of the above vector
+ * @param return_size size of the return array
+ * @return an array with decimal values. Note: array will be in descending order
  */
 int* binary2decimals(const bool *values, unsigned  variables, int* return_size){
+    //get final size of the array
     *return_size = 1;
     for(int i = 0; i < variables; i++){
         if(values[i] == dash || values[i] == not_present)

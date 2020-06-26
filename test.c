@@ -10,7 +10,9 @@
 
 //max value for the boolean plus function output
 #define MAX_VALUE 10
+#define PROBABILITY_NON_ZERO_VALUE 50
 
+//types of tests available
 typedef enum {
     sopp,
     dsopp,

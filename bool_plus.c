@@ -252,7 +252,6 @@ sopp_t* sopp_synthesis(fplus_t* f){
         fplus_update_non_zeros(f_copy);
         implicants_t *new_implicants = prime_implicants(f_copy);
         go_on = remove_implicant_duplicates(i_copy, new_implicants, f_copy) && i_copy -> size > 0;
-        //TODO: better exit only if no essential implicants
         implicants_soft_destroy(new_implicants);
 
         essentials_destroy(e);
@@ -452,6 +451,14 @@ long sopp_weights_sum(sopp_t* sopp){
 }
 
 /**
+ * @return true <=> the given sopp is not empty
+ */
+bool sopp_not_empty(sopp_t* sopp){
+    return sopp->current_length > 0;
+}
+
+
+/**
  * Checks if dsopp_t is a correct disjoint sop plus form of the function fun
  * time: exponential in number of variables
  * @return true it is valid
@@ -521,7 +528,7 @@ dsopp_t* dsopp_synthesis(fplus_t* f){
     NULL_CHECK(product_list);
     fplus_t* f_copy = fplus_copy(f);
 
-    while(f_copy->nz_size > 0) {
+    while(f_copy->nz_size > 0 && sopp_not_empty(sopp)) {
         productp_t **products = alist_as_array(sopp->arraylist, NULL);
         for (int i = 0; i < sopp->current_length; i++) {
             llist_add(product_list, products[i]);
@@ -559,7 +566,7 @@ dsopp_t* dsopp_synthesis_wexperimental(fplus_t* f){
     NULL_CHECK(product_list);
     fplus_t* f_copy = fplus_copy(f);
 
-    while(f_copy->nz_size > 0) {
+    while(f_copy->nz_size > 0 && sopp_not_empty(sopp)) {
         productp_t **products = alist_as_array(sopp->arraylist, NULL);
         for (int i = 0; i < sopp->current_length; i++) {
             llist_add(product_list, products[i]);
@@ -602,32 +609,6 @@ fplus_t* fplus_create(int* values, bvector* non_zeros, int variables, int size){
     return function;
 }
 
-fplus_t* fplus_create_empty(unsigned variables){
-    fplus_t* function;
-    unsigned long f_size = 1;
-    f_size = f_size << variables;
-
-    MALLOC(function, sizeof(fplus_t), ;);
-    MALLOC(function -> values, sizeof(int) * f_size, FREE(function));
-    MALLOC(function -> non_zeros, sizeof(bvector) * f_size, FREE(function -> values); FREE(function));
-
-    for(size_t i = 0; i < f_size; i++){
-        function -> values[i] = F_DONT_CARE_VALUE;
-        function -> non_zeros[i] = decimal2binary(i, variables); //end of array
-    }
-    function -> variables = variables;
-    function -> nz_size = f_size; //end of array
-    return function;
-}
-
-void fplus_add_output(fplus_t* f, int index, int value){
-    if(value == 0){
-        //TODO
-    }else{
-        f->values[index] = value;
-    }
-}
-
 /**
  * Creates a boolean plus function with random outputs.
  * Each non zero value has a random output between 1 and max_value
@@ -656,6 +637,47 @@ fplus_t* fplus_create_random(unsigned variables, int max_value, unsigned non_zer
             function -> non_zeros[non_zeros_index++] = decimal2binary(i, variables); //end of array
         }else
             function -> values[i] = 0;
+    }
+    function -> variables = variables;
+    function -> nz_size = non_zeros_index; //end of array
+    REALLOC(function -> non_zeros, sizeof(bvector) * non_zeros_index, ;);
+    return function;
+}
+
+/**
+ * Creates a boolean plus function with random outputs, some may be don't care values (50% chance).
+ * Each non zero value has a random output between 1 and max_value
+ * @param variables Number of variables taken by the function
+ * @param max_value Max value for the output of the function
+ * @param non_zero_chance The probability (as percentage) of having a non zero value as output
+ * @return A pointer to the function
+ */
+fplus_t* fplus_create_random_wundefined(unsigned variables, int max_value, unsigned non_zero_chance){
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    srandom(spec.tv_nsec);
+    fplus_t* function;
+    unsigned long f_size = 1;
+    f_size = f_size << variables;
+    int non_zeros_index = 0;
+
+    MALLOC(function, sizeof(fplus_t), ;);
+    MALLOC(function -> values, sizeof(int) * f_size, FREE(function));
+    MALLOC(function -> non_zeros, sizeof(bvector) * f_size, FREE(function -> values); FREE(function));
+
+    for(size_t i = 0; i < f_size; i++){
+        bool is_undefined = random() % 100;
+        if(is_undefined < PROBABILITY_UNDEFINED) {
+            function->values[i] = F_DONT_CARE_VALUE;
+            function->non_zeros[non_zeros_index++] = decimal2binary(i, variables);
+        } else {
+            bool is_non_zero = random() % 100;
+            if (is_non_zero < non_zero_chance) {
+                function->values[i] = (int) ((random()) % max_value) + 1;
+                function->non_zeros[non_zeros_index++] = decimal2binary(i, variables);
+            } else
+                function->values[i] = 0;
+        }
     }
     function -> variables = variables;
     function -> nz_size = non_zeros_index; //end of array
@@ -716,6 +738,14 @@ void fplus_sub2value_sopp(fplus_t* f, int index, int decrement){
     }
 }
 
+/**
+ * Subtracts the decrement to the output of the function
+ * given the input as decimal. The point is set to don't care
+ * only if a negative value is reached
+ * @param f The function
+ * @param index The input given as a decimal
+ * @param decrement The amount to decrement
+ */
 void fplus_sub2value_dsopp(fplus_t* f, int index, int decrement){
     f -> values[index] -= decrement;
     if(f -> values[index] < 0) {
@@ -788,13 +818,17 @@ void fplus_print(fplus_t* f){
         printf("Function table: \n");
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
-                printf("%d\t", f -> values[(i * size) + j]);
+                if(f -> values[(i * size) + j] == F_DONT_CARE_VALUE)
+                    printf("-\t");
+                else
+                    printf("%d\t", f -> values[(i * size) + j]);
             }
             printf("\n");
         }
         return;
     }
 
+    //if 4 variables, arrange values in matrix according to karnaugh ordering
     int matrix[4][4];
     for(int i = 0; i < 4; i++){
         for(int j = 0; j < 4; j++){
@@ -813,7 +847,10 @@ void fplus_print(fplus_t* f){
     printf("Karnaugh map: \n");
     for(int i = 0; i < f -> variables; i++) {
         for (int j = 0; j < f -> variables; j++) {
-            printf("%d\t", matrix[i][j]);
+            if(matrix[i][j] == F_DONT_CARE_VALUE)
+                printf("-\t");
+            else
+                printf("%d\t", matrix[i][j]);
         }
         printf("\n");
     }
@@ -893,7 +930,8 @@ implicants_t* prime_implicants(fplus_t* f) {
             //sort non zero values
             my_quicksort(non_zeros, 0, (int) non_zeros_size - 1, f->variables, norms);
 
-            bool taken[non_zeros_size]; // stores if the corresponding element inside non_zeros has been joined at least one time with another
+            //stores if the corresponding element inside non_zeros has been joined at least one time with another
+            bool taken[non_zeros_size];
             memset(taken, 0, sizeof(bool) * non_zeros_size);
 
             alist_t *impl_found = alist_create(); //current list of implicants
@@ -909,7 +947,9 @@ implicants_t* prime_implicants(fplus_t* f) {
                     else if (norms[j] > current_elem_class + 1)
                         class_has_changed = true;
                     else {
-                        if(!old_list_2free && fplus_value_of(f, non_zeros[i]) == F_DONT_CARE_VALUE && fplus_value_of(f, non_zeros[j]) == F_DONT_CARE_VALUE){
+                        if(!old_list_2free &&
+                            fplus_value_of(f, non_zeros[i]) == F_DONT_CARE_VALUE &&
+                            fplus_value_of(f, non_zeros[j]) == F_DONT_CARE_VALUE){
                             //if they both cover don't care points
                             taken[i] = true;
                             taken[j] = true;
@@ -1247,13 +1287,13 @@ void implicants_destroy(implicants_t* impl){
 
 /**
  * Finds the essential implicants of the function from the prime implicants
- * !!!Exponential in space!!!
  * @return a pointer to a struct containing the essential points and the essential prime implicants
  */
 essentialsp_t* essential_implicants(fplus_t* f, implicants_t* implicants){
     unsigned long f_size = 1;
-    f_size = f_size << (f -> variables); //TODO: exp size unnecessary as only non_zero points are needed
-    alist_t* points[f_size]; //each index represent a point of f, the list will contain the implicants covering that point
+    f_size = f_size << (f -> variables);
+    //each index represents a point of f, the list will contain the implicants covering that point
+    alist_t* points[f_size];
     bvector essential_implicants[f_size]; //stores the essential prime implicants
     int e_index = 0; //index of above and below array;
     bvector* essential_points; //stores the essential points

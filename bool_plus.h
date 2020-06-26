@@ -16,8 +16,8 @@
 //value for don't care point in f
 #define F_DONT_CARE_VALUE (-1)
 
-//distribution of non zero values when building a random fplus
-#define PROBABILITY_NON_ZERO_VALUE 50
+//distribution of don't care values when building a random fplus
+#define PROBABILITY_UNDEFINED 50
 
 //parameter for sopp representation in semi-hashtable
 #define INIT_SIZE 100
@@ -73,7 +73,7 @@ void sopp_destroy(sopp_t*); //frees the memory of a sopp form
 sopp_t* sopp_synthesis(fplus_t*); //return a minimal sopp form for the given function
 sopp_t* sopp_synthesis_experimental(fplus_t*); //sopp synthesis with minor changes to optimize time
 long sopp_weights_sum(sopp_t*); //returns sum of weights of sopp/dsopp form
-
+bool sopp_not_empty(sopp_t*); //true if the sopp has at least a product
 
 /*
  * dsopp related functions
@@ -91,8 +91,10 @@ void dsopp_print(dsopp_t*); //prints the dsopp
 fplus_t* fplus_create(int* values, bool** non_zeros, int variables, int size);
 fplus_t* fplus_create_empty(unsigned variables); //creates an f with all don't care values
 void fplus_add_output(fplus_t*, int index, int value); //use to build from an empty function
+
 //creates a boolean plus function with random outputs
 fplus_t* fplus_create_random(unsigned variables, int max_value, unsigned non_zero_chance);
+fplus_t* fplus_create_random_wundefined(unsigned, int, unsigned); //like above but with don't care values
 int fplus_value_of(fplus_t*, bool*); //returns the output of the function with the given input
 int fplus_value_at(fplus_t*, int); //returns the output of the function at the given index
 

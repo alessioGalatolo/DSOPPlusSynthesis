@@ -2,25 +2,25 @@
 
 #this script is used to compare the time of sopp and dsopp synthesis
 
-executable_path="./cmake-build-debug/DSOPP_synthesis"
+executable_path="./cmake-build-debug/DSOPP_synthesis" #default executable path
 test_result_filename="test_tmp_results"
-TIMEFORMAT="%5R"
-n_tests=100
-n_variables=6
-program_out="synthesis_weights.out"
-program_e_out="synthesis_e_weights.out"
+TIMEFORMAT="%5R" #for precision in measuring runtime
+n_tests=100 #default value
+n_variables=6 #default value
+program_out="synthesis_weights.out" #file for collecting the weights of the standard forms
+program_e_out="synthesis_e_weights.out" #file for collecting the weights of the experimental forms
 INT_MAX=2147483647
 
 #check arguments
-if (($# == 0)); then
+if (($# == 0)); then #not enough arguments
   echo Usage: bash "$0" test_type "[n_variables]" "[n_tests]"
   echo Test types aviailable: sopp dsopp
   exit
 else
   test_type=$1
-  if (($# > 1)); then
+  if (($# > 1)); then #was given a value for the number of variables to use
     n_variables=$2
-    if(($# > 2)); then
+    if(($# > 2)); then #was given a value for the number of tests to do
       n_tests=$3
     fi
   fi
@@ -29,8 +29,10 @@ fi
 #test executable existance
 if ! [ -f $executable_path ]; then
   if [ $# -gt 0 ] && [ -f "$1" ]; then
+    #if invalid default path, check for a given one
     executable_path=$1
     if ! (($# > 1)); then
+      #valid executable path was provided but not enough arguments
       echo Usage: bash "$0" executable_path test_type "[n_variables]" "[n_tests]"
       echo Test types aviailable: sopp dsopp
       exit
@@ -43,6 +45,7 @@ if ! [ -f $executable_path ]; then
       fi
     fi
   else
+    #no valid executable path was provided
     echo executable was not found in the default path, please use:
     echo bash "$0" executable_path test_type "[n_variables]" "[n_tests]"
     exit
@@ -52,9 +55,11 @@ fi
 #recap
 echo Comparing performance and output of "$test_type" synthesis with "$n_variables" variables over "$n_tests" tests
 
-#execute program and store time of execution
-{ time "$executable_path" "$test_type""_time" "$n_variables" "$n_tests" > $program_out 2> execution_errors; } 2>> $test_result_filename"$test_type"
-{ time "$executable_path" "$test_type""_e_time" "$n_variables" "$n_tests" > $program_e_out 2> execution_errors_e; } 2>> $test_result_filename"$test_type""_e"
+#execute program and store time of execution, redirect errors to a different file
+{ time "$executable_path" "$test_type""_time" "$n_variables" "$n_tests" > $program_out 2> execution_errors; }\
+ 2>> $test_result_filename"$test_type"
+{ time "$executable_path" "$test_type""_e_time" "$n_variables" "$n_tests" > $program_e_out 2> execution_errors_e; }\
+ 2>> $test_result_filename"$test_type""_e"
 
 #retrieve time of execution
 sec_standard=$(cut -d, -f1 $test_result_filename"$test_type")
@@ -112,3 +117,12 @@ echo max weight in experimental synthesis is "$experimental_max" while min is "$
 rm $test_result_filename*
 rm $program_out
 rm $program_e_out
+
+#remove files conatining exection errors if empty
+if [ ! -s ./execution_errors ] ; then
+  rm execution_errors
+fi
+if [ ! -s execution_errors_e ] ; then
+  rm execution_errors_e
+fi
+

@@ -16,3 +16,7 @@ make
 ```
 
 To install, run `sudo make install` after building.
+
+## Use
+
+TODO
